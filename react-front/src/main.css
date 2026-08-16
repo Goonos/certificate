@@ -1,0 +1,800 @@
+:root {
+    --bg-color: #f8fafc;
+    --card-bg: #ffffff;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --text-main: #0f172a;
+    --text-sub: #64748b;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: "Pretendard Variable", Pretendard, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: #f1f5f9;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+}
+#root {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.mobile-shell {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    background-color: var(--bg-color);
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+.main-content {
+    flex: 1;
+    padding: 20px;
+}
+
+/* 맥북 스타일 창 틀 (메인 프레임) */
+.safari-window {
+    background-color: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.safari-header {
+    width: 100%;
+    height: 44px; /* 높이 절대 고정 */
+    min-height: 44px; /* 무슨 일이 있어도 이 높이 유지 */
+    flex-shrink: 0; /* 부모가 쪼그라들어도 절대 수축 안 함 */
+    background-color: #e2e8f0;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+    border-bottom: 1px solid var(--border-color);
+    box-sizing: border-box; /* 패딩 포함해서 크기 계산 */
+}
+
+.safari-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 2;
+    flex-shrink: 0; /* 👈 핵심: 공간이 부족해도 절대 찌그러지지 않음 */
+}
+
+/* 우측 액션 버튼들 (마이페이지, 설정) */
+.safari-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 2;
+    flex-shrink: 0; /* 👈 핵심: 공간이 부족해도 절대 찌그러지지 않음 */
+}
+/* 가운데 URL 주소창 */
+.safari-url-bar {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 45%;
+    min-width: 130px; /* 너무 작아지는 것 방지 */
+    max-width: 180px;
+    height: 24px;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    z-index: 1;
+}
+
+/* 신호등 원형 버튼 정중앙 아이콘 정렬 */
+.dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: transform 0.15s var(--ease-out);
+}
+
+.dot:active {
+    transform: scale(0.88);
+}
+
+.dot-red {
+    background-color: #ff5f56;
+    border: 0.5px solid #e0443e;
+    color: #4a0000;
+}
+
+.dot-yellow {
+    background-color: #ffbd2e;
+    border: 0.5px solid #dea123;
+    color: #5c3c00;
+}
+
+.dot-green {
+    background-color: #27c93f;
+    border: 0.5px solid #1aab29;
+    color: #003808;
+}
+
+.dot-icon {
+    width: 10px;
+    height: 10px;
+    stroke-width: 2.8px;
+    display: block;
+}
+
+
+
+.url-text {
+    font-size: 11px;
+    color: var(--text-sub);
+}
+
+
+
+.icon-btn-sm {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    transition: background-color 0.15s var(--ease-out), color 0.15s;
+}
+
+.icon-btn-sm:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+    color: var(--text-main);
+}
+
+.icon-btn-sm:active {
+    transform: scale(0.92);
+}
+
+.safari-body {
+    padding: 20px;
+}
+
+.menu-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.menu-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.25s var(--ease-out);
+}
+
+.menu-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: rgba(37, 99, 235, 0.3);
+    transform: translateY(-2px);
+}
+
+.menu-card:active {
+    transform: scale(0.98);
+}
+
+.card-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.card-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-text h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.card-arrow {
+    color: #94a3b8;
+    transition: transform 0.2s var(--ease-out), color 0.2s;
+}
+
+.menu-card:hover .card-arrow {
+    color: var(--primary);
+    transform: translateX(4px);
+}
+
+.card-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 20px;
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+/* 드로어 메뉴 스타일 */
+.drawer-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s var(--ease-out);
+}
+.drawer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+.drawer {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 80%; max-width: 320px;
+    background: white;
+    z-index: 101;
+    padding: 24px;
+    transform: translateX(100%);
+    transition: transform 0.35s var(--ease-out);
+    display: flex; flex-direction: column; justify-content: space-between;
+}
+.drawer.active {
+    transform: translateX(0);
+}
+.drawer-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;
+}
+.drawer-menu-list {
+    list-style: none; display: flex; flex-direction: column; gap: 12px;
+}
+.drawer-menu-item {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    border-radius: 12px; color: var(--text-main); font-weight: 600; cursor: pointer; transition: background 0.2s;
+}
+.drawer-menu-item:hover { background-color: #f8fafc; }
+
+/* 유저 배너 */
+.user-banner {
+    background: #f8fafc; border: 1px solid var(--border-color); padding: 14px 16px;
+    border-radius: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px;
+}
+.avatar {
+    width: 36px; height: 36px; border-radius: 50%; background: #dbeafe;
+    color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+
+/* =======================================
+   모바일 하단 선택창 (Action Sheet) 스타일
+   ======================================= */
+.action-sheet-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); z-index: 200;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.action-sheet-overlay.active { opacity: 1; pointer-events: auto; }
+
+.action-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: white; border-radius: 20px 20px 0 0;
+    padding: 24px; z-index: 201;
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 480px; margin: 0 auto;
+}
+.action-sheet.active { transform: translateY(0); }
+
+.type-btn {
+    display: block; width: 100%; padding: 16px; margin-bottom: 12px;
+    background: #f1f5f9; border: none; border-radius: 12px;
+    font-size: 16px; font-weight: 600; color: #0f172a; cursor: pointer; text-align: left; transition: background 0.2s;
+}
+.type-btn:active { background: #e2e8f0; transform: scale(0.98); }
+
+
+
+/* =======================================
+   OMR 전용 레이아웃 스타일 (앱처럼 내부 스크롤)
+   ======================================= */
+.omr-body-container {
+    display: flex;
+    flex-direction: column;
+    
+    /* 🔥 핵심: 모바일 화면(100dvh)에서 겉 여백과 헤더 크기를 뺀 만큼만 높이를 절대 고정! 🔥 */
+    height: calc(100vh - 90px);
+    height: calc(100dvh - 90px); /* 최신 모바일 브라우저 주소창까지 완벽 대응 */
+    
+    overflow: hidden !important; 
+    padding-bottom: 0 !important;
+}
+
+/* =======================================
+   OMR 상단 정보 바 (모바일 겹침 방지 레이아웃)
+   ======================================= */
+.omr-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    position: relative;
+    flex-shrink: 0;
+    width: 100%;
+}
+
+/* 1. 좌측 타이머 */
+.timer-box {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #f1f5f9;
+    padding: 5px 9px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #2563eb;
+    flex-shrink: 0;
+}
+
+/* 2. 중앙 선택 종목 & 회차 (양옆 버튼과 절대 겹치지 않게 폭 제한 및 말줄임표 처리) */
+.exam-title-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 2px;
+    max-width: calc(100% - 130px); /* 🔥 좌우 타이머/답안지 버튼과의 충돌 방지 공간 확보 */
+    overflow: hidden;
+}
+
+.exam-subject-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #0284c7;
+    background: #e0f2fe;
+    padding: 1px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.exam-session-text {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    margin: 0;
+}
+
+/* 3. 우측 상단 답안지 버튼 (숫자 n/n 만 컴팩트하게 노출) */
+.omr-top-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.1s;
+}
+
+.omr-top-btn:active {
+    transform: scale(0.95);
+}
+
+.top-btn-badge {
+    background: #2563eb;
+    color: #ffffff;
+    padding: 4px 9px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.omr-divider {
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    margin-bottom: 16px;
+    flex-shrink: 0; /* 구분선도 고정 */
+}
+
+/* =======================================
+   🔥 핵심 3: 오직 '문제 목록'만 위아래로 스크롤 됩니다!
+   ======================================= */
+.question-list-section.full-width {
+    width: 100%;
+    flex: 1; /* 상단바가 차지하고 남은 아래쪽 공간을 꽉 채움 */
+    overflow-y: auto; /* 🔥 오직 이 박스 안에서만 스크롤이 발생하도록 설정 */
+    padding-bottom: 20px;
+}
+
+.question-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.question-header {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.q-number {
+    font-weight: 800;
+    color: #2563eb;
+    font-size: 16px;
+}
+
+.q-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.4;
+}
+
+.options-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.option-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.option-btn.selected {
+    background: #dbeafe;
+    border-color: #2563eb;
+    font-weight: 700;
+}
+
+.opt-number {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.option-btn.selected .opt-number {
+    background: #2563eb;
+}
+
+/* 📌 우측에서 튀어나오는 OMR 드로어 패널 */
+.omr-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    border-radius: 16px;
+}
+.omr-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.omr-drawer {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 260px;
+    background: #f8fafc;
+    z-index: 51;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+}
+.omr-drawer.active {
+    transform: translateX(0);
+}
+
+.omr-drawer-header {
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    background: white;
+}
+.omr-drawer-header h4 {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 16px; font-weight: 800; color: #0f172a;
+}
+
+.omr-drawer-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.omr-drawer-footer {
+    padding: 16px;
+    background: white;
+    border-top: 1px solid var(--border-color);
+}
+
+.omr-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: white;
+    margin-bottom: 8px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+}
+.omr-row:active { transform: scale(0.98); }
+
+.omr-q-num {
+    font-size: 13px; font-weight: 700; color: #475569; width: 36px;
+}
+
+.omr-bubbles { display: flex; gap: 6px; }
+
+.omr-bubble {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1px solid #cbd5e1;
+    background: white;
+    font-size: 12px; font-weight: 700; color: #64748b;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.omr-bubble.checked {
+    background: #2563eb; color: white; border-color: #2563eb;
+}
+
+.submit-exam-btn {
+    width: 100%;
+    padding: 14px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+
+/* =======================================
+   문제 헤더 및 단답형 UI 수정
+   ======================================= */
+/* 1. 번호와 제목 정렬 및 박스 구조 변경 */
+.question-header {
+    display: flex;
+    align-items: flex-start; /* 텍스트가 길어도 번호가 항상 맨 위에 위치하도록 설정 */
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.q-title-box {
+    display: flex;
+    flex-direction: column;
+    flex: 1; /* 남은 공간을 꽉 채움 */
+}
+
+/* 2. 단답형 태그: 독립적인 블록으로 깔끔하게 줄바꿈됨 */
+.short-type-tag {
+    font-size: 11px;
+    font-weight: 700;
+    color: #d97706;
+    background: #fef3c7;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block; /* 부모(div) 속에서 자기 크기만큼만 예쁘게 잡힘 */
+}
+
+/* 3. OMR 서랍 안에 표시되는 단답형 텍스트 박스 */
+.omr-short-answer-display {
+    font-size: 12px;
+    font-weight: 700;
+    color: #2563eb;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 4px 8px;
+    border-radius: 6px;
+    max-width: 140px; /* 글자가 너무 길어도 서랍(Drawer) 폭을 망가뜨리지 않게 제한 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* 범위를 넘어가면 '...' 으로 깔끔하게 생략 처리 */
+    text-align: right;
+}
+
+.short-answer-wrapper {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.short-input-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.short-answer-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #f8fafc;
+}
+
+.short-answer-input:focus {
+    border-color: #2563eb;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.omr-short-status {
+    display: flex;
+    align-items: center;
+}
+
+.omr-badge.empty {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #94a3b8;
+}
+
+/* =======================================
+   과목 헤더 배너 스타일 (좌측 테두리 포인트 제거)
+   ======================================= */
+.subject-header-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f1f5f9;
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm); /* 좌측 border-left 포인트 제거 완료 */
+}
+
+.subject-header-banner:first-child {
+    margin-top: 4px;
+}
+
+.subject-num-badge {
+    font-size: 11px;
+    font-weight: 800;
+    color: #ffffff;
+    background: #2563eb;
+    padding: 3px 8px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.subject-title-text {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+}
+
+/* =======================================
+   우측 하단 고정(Floating) 제출 버튼
+   ======================================= */
+.floating-submit-btn {
+    position: absolute;
+    
+    /* 🔥 화면 우측과 하단에서 충분한 여백 확보 (아이폰 홈 바 겹침 완벽 방지) */
+    bottom: calc(40px + env(safe-area-inset-bottom, 0px)); 
+    right: 24px; 
+    
+    z-index: 30; /* 문제 카드 및 스크롤 영역보다 위에 뜨도록 설정 */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 24px;
+    
+    /* 🔥 엄지손가락으로 누르기 더 편하도록 터치 영역(padding)도 살짝 키웠습니다 */
+    padding: 12px 20px; 
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.floating-submit-btn:hover {
+    background: #1d4ed8;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
+}
+
+.floating-submit-btn:active {
+    transform: scale(0.94);
+}
