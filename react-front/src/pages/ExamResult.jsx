@@ -79,7 +79,7 @@ export default function ExamResult() {
             examInfo, questions, answers, elapsedTime, attemptId
         }));
         const returnUrl = encodeURIComponent('/exam-result');
-        window.location.href = `http://localhost:3000/api/auth/kakao?returnUrl=${returnUrl}`;
+        window.location.href = `/api/auth/kakao?returnUrl=${returnUrl}`;
     };
 
     if (!questions) return null;

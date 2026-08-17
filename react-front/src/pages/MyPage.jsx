@@ -81,7 +81,7 @@ export default function MyPage() {
                     <button 
                         onClick={() => {
                             const returnUrl = encodeURIComponent('/mypage');
-                            window.location.href = `http://localhost:3000/api/auth/kakao?returnUrl=${returnUrl}`;
+                            window.location.href = `/api/auth/kakao?returnUrl=${returnUrl}`;
                         }}
                         style={{ 
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',

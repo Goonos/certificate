@@ -85,16 +85,16 @@ router.get('/kakao/callback', async (req, res) => {
         const returnUrl = req.cookies.return_url || '/';
         res.clearCookie('return_url', { path: '/' }); 
 
-        // 원래 있던 프론트엔드 화면으로 복귀!
-        res.redirect(`http://localhost:5173${returnUrl}`);
+        // 🔥 원래 있던 프론트엔드 화면으로 복귀! (localhost 제거, 상대 경로 사용)
+        res.redirect(returnUrl);
 
     } catch (err) {
         console.error("🚨 카카오 로그인 콜백 에러 발생! 원인:", err.message);
-        // 에러가 났을 때 왜 튕겼는지 브라우저 주소창에 띄워줍니다!
-        res.redirect('http://localhost:5173/?error=login_failed')}`);
+        // 🔥 에러가 났을 때 왜 튕겼는지 브라우저 주소창에 띄워줍니다! (찌꺼기 괄호 제거, 상대 경로 사용)
+        res.redirect('/?error=login_failed');
     }
 });
-
+ 
 // 3. 내 정보 확인 (JWT 파싱)
 router.get('/me', (req, res) => {
     const token = req.cookies.cbt_token;

@@ -99,7 +99,7 @@ export default function App() {
                 });
         } else {
             const returnUrl = encodeURIComponent(window.location.pathname);
-            window.location.href = `http://localhost:3000/api/auth/kakao?returnUrl=${returnUrl}`;
+            window.location.href = `/api/auth/kakao?returnUrl=${returnUrl}`;
         }
     };
 
