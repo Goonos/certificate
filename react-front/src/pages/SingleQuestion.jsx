@@ -253,9 +253,18 @@ export default function SingleQuestion() {
 
                         {/* 지문 유무 확인 */}
                         {currentQ.passageText && (
-                            <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '10px', fontSize: '13px', color: '#334155', border: '1px solid #e2e8f0', marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
-                                {currentQ.passageText}
-                            </div>
+                            <div 
+                                style={{ 
+                                    background: '#f8fafc', padding: '14px', borderRadius: '10px', 
+                                    fontSize: '13px', color: '#334155', border: '1px solid #e2e8f0', 
+                                    marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.5',
+                                    overflowX: 'auto' /* 표가 길어질 때 스크롤 추가 */
+                                }}
+                                // 🔥 핵심: 변수를 그대로 찍지 않고, 디코딩 후 HTML로 삽입
+                                dangerouslySetInnerHTML={{ 
+                                    __html: currentQ.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
+                                }}
+                            />
                         )}
 
                         {/* 보기(객관식) vs 주관식 입력창 */}

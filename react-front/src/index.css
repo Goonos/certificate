@@ -109,3 +109,53 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* 지문 영역 스타일 지정 */
+.passage-box {
+    margin: 12px 0 20px 0;
+    padding: 16px;
+    background-color: var(--bg-subtle, #f9fafb);
+    border: 1px solid var(--border-subtle, #e5e7eb);
+    border-radius: 8px;
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: var(--fg-2, #374151);
+    overflow-x: auto; /* 코드나 표가 길어질 경우 스크롤 처리 */
+}
+
+/* 크롤링해 온 인라인 코드나 표(Table) 스타일 보정 */
+.passage-box table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+}
+
+.passage-box th, .passage-box td {
+    border: 1px solid #d1d5db;
+    padding: 8px 12px;
+    font-size: 13.5px;
+}
+
+/* 지문(Passage) 박스 디자인 */
+.passage-box {
+    margin: 16px 0;
+    padding: 16px;
+    background-color: var(--bg-subtle, #f3f4f6);
+    border: 1px solid var(--border-default, #e5e7eb);
+    border-radius: 8px;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--fg-2, #374151);
+    overflow-x: auto; /* 내용이 길면 가로 스크롤 생성 */
+}
+
+/* 크롤링된 표(Table) 스타일 보정 */
+.passage-box table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+.passage-box th, .passage-box td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+}

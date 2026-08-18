@@ -197,21 +197,46 @@ export default function ExamOmr() {
                                 )}
 
                                 <div id={`q-${q.qNo}`} className="question-card">
+                                    
+                                    {/* 1. 문제 번호 및 제목 */}
                                     <div className="question-header">
                                         <span className="q-number">{q.qNo}.</span>
                                         <div className="q-title-box">
                                             <p className="q-title">{q.title}</p>
-                                            {!isMultipleChoice && <div style={{ marginTop: '8px' }}><span className="short-type-tag">단답형/주관식</span></div>}
+                                            {(!q.options || q.options.length === 0) && (
+                                                <div style={{ marginTop: '8px' }}><span className="short-type-tag">단답형/주관식</span></div>
+                                            )}
                                         </div>
                                     </div>
 
+                                    {/* 🔥 2. 지문 (HTML 디코딩 렌더링) 🔥 */}
+                                    {q.passageText && (
+                                        <div 
+                                            style={{ 
+                                                background: '#f8fafc', padding: '14px', borderRadius: '10px', 
+                                                fontSize: '13px', color: '#334155', border: '1px solid #e2e8f0', 
+                                                marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.5',
+                                                overflowX: 'auto' 
+                                            }}
+                                            dangerouslySetInnerHTML={{ 
+                                                __html: q.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
+                                            }} 
+                                        />
+                                    )}
+
+                                    {/* 3. 보기 버튼들 (객관식/주관식) */}
                                     {isMultipleChoice ? (
                                         <div className="options-group">
+                                            {/* 🔥 question.options 대신 q.options 사용! */}
                                             {q.options.map((opt, idx) => {
                                                 const optNo = idx + 1;
                                                 const isSelected = answers[q.qNo] === optNo;
                                                 return (
-                                                    <button key={optNo} className={`option-btn ${isSelected ? 'selected' : ''}`} onClick={() => handleAnswerChange(q.qNo, optNo)}>
+                                                    <button 
+                                                        key={optNo} 
+                                                        className={`option-btn ${isSelected ? 'selected' : ''}`} 
+                                                        onClick={() => handleAnswerChange(q.qNo, optNo)}
+                                                    >
                                                         <span className="opt-number">{optNo}</span>
                                                         <span className="opt-text">{opt}</span>
                                                     </button>
