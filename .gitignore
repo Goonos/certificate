@@ -43,4 +43,6 @@ yarn-error.log*
 
 crawler.js
 json_to_excel.js
+*.sql
+
 

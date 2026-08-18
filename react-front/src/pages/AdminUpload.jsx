@@ -21,7 +21,7 @@ const AdminUpload = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch('http://localhost:3000/api/admin/upload-excel', {
+            const response = await fetch('/api/admin/upload-excel', {
                 method: 'POST',
                 body: formData
             });
