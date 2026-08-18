@@ -29,11 +29,7 @@ router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
         console.log(`✅ 파싱 성공: 총 ${rows.length}문항 발견. DB 적재를 시도합니다.`);
 
         // 오라클 DB 접속 (환경변수 사용)
-        connection = await oracledb.getConnection({
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            connectString: process.env.DB_CONNECT_STRING
-        });
+        connection = await oracledb.getConnection();
 
         // 💡 12,000바이트 ERD 데이터도 거뜬한 바인드 변수 쿼리
         const insertSql = `
