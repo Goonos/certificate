@@ -259,9 +259,17 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                         </div>
 
                         {currentQ.passageText && (
-                            <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '10px', fontSize: '13px', color: '#334155', border: '1px solid #e2e8f0', marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
-                                {currentQ.passageText}
-                            </div>
+                            <div 
+                                style={{ 
+                                    background: '#f8fafc', padding: '14px', borderRadius: '10px', 
+                                    fontSize: '13px', color: '#334155', border: '1px solid #e2e8f0', 
+                                    marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.5',
+                                    overflowX: 'auto' /* 💡 표가 모바일 화면보다 넓을 때 가로 스크롤을 만들어주는 필수 옵션 */
+                                }}
+                                dangerouslySetInnerHTML={{ 
+                                    __html: currentQ.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
+                                }}
+                            />
                         )}
 
                         {currentQ.options && currentQ.options.length > 0 ? (
