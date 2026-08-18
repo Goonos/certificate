@@ -40,3 +40,7 @@ yarn-error.log*
 .DS_Store
 .vscode/
 .idea/
+
+crawler.js
+json_to_excel.js
+

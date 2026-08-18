@@ -10,6 +10,7 @@ import ExamResult from './pages/ExamResult';
 import MyPage from './pages/MyPage';
 import SingleQuestion from './pages/SingleQuestion';
 import SingleQuestionEach from './pages/SingleQuestionEach';
+import AdminUpload from './pages/AdminUpload';
 
 export default function App() {
     const navigate = useNavigate();
@@ -149,6 +150,7 @@ export default function App() {
                         <Route path="/mypage" element={<MyPage />} />
                         <Route path="/single-question" element={<SingleQuestion />} />
                         <Route path="/single-question-each" element={<SingleQuestionEach />} /> {/* 🔥 추가! */}
+                        <Route path="/admin" element={<AdminUpload />} />
                     </Routes>
                 </div>
             </main>

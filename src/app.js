@@ -18,6 +18,7 @@ app.use(cors({
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // 🔥 JWT 토큰을 쿠키로 읽기 위해 필수!
+app.use('/api/admin', require('./routes/admin'));
 
 // 2. API 라우터 연결 (정적 파일 서빙보다 위에 있어야 빠름)
 const authRoutes = require('./routes/auth');
