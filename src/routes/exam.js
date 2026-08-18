@@ -138,12 +138,14 @@ router.post('/questions/single-mode', async (req, res) => {
         // 1. 기본 쿼리 (TO_CHAR로 타입 변환 안전하게 적용)
         let sql = `
             SELECT Q.QUESTION_ID, Q.CATEGORY_ID, S.SUBJECT_NAME, Q.SUBJECT_NO, 
-                   Q.EXAM_SESSION, Q.QUESTION_NO, Q.PASSAGE_TEXT, Q.QUESTION_TEXT, 
-                   Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
+            Q.EXAM_SESSION, Q.QUESTION_NO, 
+            TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT,   /* 🔥 여기 수정 */
+            TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, /* 🔥 여기 수정 */
+            Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
             FROM EXAM_QUESTION Q
             LEFT JOIN EXAM_SUBJECT S ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
             WHERE TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(:categoryId) AND Q.QUESTION_TYPE = :typeCode
-        `;
+            `;
         
         let bindParams = { categoryId, typeCode };
 
@@ -337,14 +339,16 @@ router.get('/questions/resume/:attemptId', authenticateUser, async (req, res) =>
 
         const sql = `
             SELECT Q.QUESTION_ID, Q.CATEGORY_ID, S.SUBJECT_NAME, Q.SUBJECT_NO, 
-                   Q.EXAM_SESSION, Q.QUESTION_NO, Q.PASSAGE_TEXT, Q.QUESTION_TEXT, 
-                   Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
+            Q.EXAM_SESSION, Q.QUESTION_NO, 
+            TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT,   /* 🔥 여기 수정 */
+            TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, /* 🔥 여기 수정 */
+            Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
             FROM USER_SOLVE_LOG L
             JOIN EXAM_QUESTION Q ON L.QUESTION_ID = Q.QUESTION_ID
             LEFT JOIN EXAM_SUBJECT S ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
             WHERE L.ATTEMPT_ID = :1 AND L.USER_ID = :2
             ORDER BY L.SOLVE_LOG_ID ASC
-        `;
+            `;
         const result = await executeQuery(sql, [attemptId, userId]);
         let questions = result.rows;
 
