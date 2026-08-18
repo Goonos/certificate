@@ -81,28 +81,44 @@ export default function ExamOmr() {
     };
 
     const handleSaveProgress = () => {
-        fetch('/api/auth/me', { credentials: 'include' })
-            .then(res => res.json())
-            .then(data => {
-                if (!data.isLoggedIn) {
-                    alert("임시저장은 로그인 후 이용 가능합니다.");
-                    return;
-                }
-                
-                fetch('/api/exam/save-progress', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ attemptId: currentAttemptId, examInfo, questions, answers })
+    fetch('/api/auth/me', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.isLoggedIn) {
+                alert("임시저장은 로그인 후 이용 가능합니다.");
+                return;
+            }
+            
+            fetch('/api/exam/save-progress', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ 
+                    attemptId: currentAttemptId, 
+                    // 🔥 핵심: 이게 '한문제씩 풀기(종료 후 해석)' 모드라는 것을 백엔드에 확실히 각인시킵니다!
+                    examInfo: { ...examInfo, solveMode: examInfo.solveMode || 'single_end' }, 
+                    questions, 
+                    answers 
                 })
-                .then(res => res.json())
-                .then(resData => {
-                    if (resData.success) {
-                        navigate('/mypage');
-                    }
-                });
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("서버 저장 실패");
+                return res.json();
+            })
+            .then(resData => {
+                if (resData.success) {
+                    alert("성공적으로 임시저장 되었습니다.");
+                    navigate('/mypage');
+                } else {
+                    alert("저장에 실패했습니다. 다시 시도해 주세요.");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert("임시저장 중 서버 에러가 발생했습니다.");
             });
-    };
+        });
+};
 
     const handleSubmit = () => {
         if (questions.length === 0) return;
@@ -138,7 +154,8 @@ export default function ExamOmr() {
                     setTimeout(() => {
                         navigate('/exam-result', {
                             state: {
-                                examInfo,      
+                                // 🔥 핵심: 제출해서 결과창으로 넘길 때도 OMR 꼬리표 주입!
+                                examInfo: { ...examInfo, solveMode: 'omr' },      
                                 questions,     
                                 answers,       
                                 elapsedTime,

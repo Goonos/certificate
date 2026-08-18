@@ -289,8 +289,16 @@ router.post('/save-progress', authenticateUser, async (req, res) => {
                     COMMIT;
                 END;
             `;
-            await executeQuery(insertAttemptSql, [attemptId, userId, examInfo.categoryId, examInfo.sessionName, examInfo.typeCode || '01', solveMode, questions.length]);
-        } else {
+                await executeQuery(insertAttemptSql, [
+                    attemptId, 
+                    userId, 
+                    examInfo.categoryId, 
+                    examInfo.sessionName || '지정/랜덤 모의고사', // 🔥 핵심: 비어있으면 기본값 텍스트 삽입!
+                    examInfo.typeCode || '01', 
+                    solveMode, 
+                    questions.length
+                ]);        
+            } else {
             const updateAttemptSql = `
                 BEGIN
                     UPDATE USER_EXAM_ATTEMPT 
@@ -434,7 +442,17 @@ router.post('/submit', authenticateUser, async (req, res) => {
                     COMMIT;
                 END;
             `;
-            await executeQuery(insertAttemptSql, [attemptId, userId, examInfo.categoryId, examInfo.sessionName, examInfo.typeCode || '01', solveMode, score, totalCount, correctCount]);
+            await executeQuery(insertAttemptSql, [
+                attemptId, 
+                userId, 
+                examInfo.categoryId, 
+                examInfo.sessionName || '지정/랜덤 모의고사', // 🔥 여기도 동일하게 추가!
+                examInfo.typeCode || '01', 
+                solveMode, 
+                score, 
+                totalCount, 
+                correctCount
+            ]);        
         }
 
         for (const log of solveLogs) {
