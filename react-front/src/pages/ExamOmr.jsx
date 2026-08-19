@@ -94,12 +94,12 @@ export default function ExamOmr() {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ 
-                    attemptId: currentAttemptId, 
-                    // 🔥 핵심: 이게 '한문제씩 풀기(종료 후 해석)' 모드라는 것을 백엔드에 확실히 각인시킵니다!
-                    examInfo: { ...examInfo, solveMode: examInfo.solveMode || 'single_end' }, 
-                    questions, 
-                    answers 
-                })
+                attemptId: currentAttemptId, 
+                examInfo: { ...examInfo, solveMode: 'omr' }, 
+                // 🔥 마법의 코드: 서버가 채점/저장할 때 필요한 최소한의 뼈대 데이터만 맵핑해서 보냅니다!
+                questions: questions.map(q => ({ questionId: q.questionId, qNo: q.qNo, answer: q.answer })),
+                answers 
+            })
             })
             .then(res => {
                 if (!res.ok) throw new Error("서버 저장 실패");

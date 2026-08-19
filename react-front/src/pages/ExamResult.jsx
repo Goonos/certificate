@@ -1,14 +1,12 @@
-// src/pages/ExamResult.jsx
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Award, CheckCircle2, AlertCircle, ChevronRight, MessageCircle } from 'lucide-react';
+import { Award, CheckCircle2, AlertCircle, ChevronRight, MessageCircle, XCircle, BookOpen } from 'lucide-react';
 
 export default function ExamResult() {
     const location = useLocation();
     const navigate = useNavigate();
     
     const pendingData = JSON.parse(sessionStorage.getItem('pending_exam_result') || 'null');
-    // 🔥 attemptId를 location.state나 pendingData에서 확실하게 뽑아옵니다!
     const { examInfo, questions, answers, elapsedTime, attemptId } = location.state || pendingData || {};
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -16,6 +14,9 @@ export default function ExamResult() {
     const [isSyncing, setIsLoggedInSyncing] = useState(false);
 
     const isPracticalExam = examInfo?.typeCode === '02';
+
+    // 💡 정답/오답 분류 데이터를 담을 상태 (추가됨)
+    const [reviewData, setReviewData] = useState({ correctQuestions: [], incorrectQuestions: [] });
 
     useEffect(() => {
         if (!questions) {
@@ -26,23 +27,47 @@ export default function ExamResult() {
 
         let totalCorrect = 0;
         const stats = {};
+        
+        // 💡 리뷰용 배열
+        const correctList = [];
+        const incorrectList = [];
 
         questions.forEach(q => {
             const isCorrect = String(answers[q.qNo]) === String(q.answer);
             if (isCorrect) totalCorrect++;
 
+            // 과목 통계용
             const subNo = q.subjectNo || '1';
             const subName = q.subjectName || '과목';
-            
             if (!stats[subNo]) {
                 stats[subNo] = { name: subName, total: 0, correct: 0 };
             }
             stats[subNo].total++;
             if (isCorrect) stats[subNo].correct++;
+
+            // 💡 정답/오답 리뷰용 데이터 가공 (추가됨)
+            const myAnswer = answers[q.qNo] !== undefined && answers[q.qNo] !== null ? String(answers[q.qNo]).trim() : '';
+            const realAnswer = String(q.answer).trim();
+
+            const myAnswerText = q.options && q.options.length > 0 && myAnswer && !isNaN(myAnswer) 
+                ? `${myAnswer}번. ${q.options[Number(myAnswer) - 1] || ''}` 
+                : (myAnswer || '미입력');
+            
+            const realAnswerText = q.options && q.options.length > 0 && realAnswer && !isNaN(realAnswer)
+                ? `${realAnswer}번. ${q.options[Number(realAnswer) - 1] || ''}` 
+                : realAnswer;
+
+            const questionData = { ...q, myAnswerText, realAnswerText, isCorrect };
+
+            if (isCorrect) correctList.push(questionData);
+            else incorrectList.push(questionData);
         });
 
         const totalScore = Math.round((totalCorrect / questions.length) * 100);
         setScoreData({ totalScore, subjectStats: stats });
+        
+        // 상태에 리뷰 데이터 저장
+        setReviewData({ correctQuestions: correctList, incorrectQuestions: incorrectList });
 
         fetch('/api/auth/me', { credentials: 'include' })
             .then(res => res.json())
@@ -52,12 +77,14 @@ export default function ExamResult() {
                 if (data.isLoggedIn && questions) {
                     setIsLoggedInSyncing(true);
                     
-                    // 🔥 백엔드에 attemptId를 무조건 같이 보냅니다! (기존 데이터 덮어쓰기)
+                    // 🔥 용량 최적화를 위해 문제 지문은 빼고 보냅니다 (직전 트러블슈팅 반영)
+                    const optimizedQuestions = questions.map(q => ({ questionId: q.questionId || q.QUESTION_ID, qNo: q.qNo, answer: q.answer }));
+
                     fetch('/api/exam/submit', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
-                        body: JSON.stringify({ attemptId, examInfo, questions, answers }) 
+                        body: JSON.stringify({ attemptId, examInfo, questions: optimizedQuestions, answers }) 
                     })
                     .then(res => res.json())
                     .then(resData => {
@@ -71,10 +98,9 @@ export default function ExamResult() {
             })
             .catch(() => setIsLoggedIn(false));
 
-    }, [questions, answers, navigate, attemptId]);
+    }, [questions, answers, navigate, attemptId, examInfo]);
 
     const handleKakaoLoginWithSave = () => {
-        // 임시 보관함에 attemptId도 같이 챙겨 넣습니다!
         sessionStorage.setItem('pending_exam_result', JSON.stringify({
             examInfo, questions, answers, elapsedTime, attemptId
         }));
@@ -87,8 +113,52 @@ export default function ExamResult() {
     const isPassed = scoreData.totalScore >= 60;
     const hasMultipleSubjects = Object.keys(scoreData.subjectStats).length > 1;
 
+    // 💡 개별 문제 리뷰 카드 컴포넌트 (추가됨)
+    const ReviewCard = ({ q }) => (
+        <div style={{
+            background: '#fff', borderRadius: '12px', padding: '20px', marginBottom: '16px',
+            border: `1px solid ${q.isCorrect ? '#bbf7d0' : '#fecaca'}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+        }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '12px' }}>
+                {q.isCorrect ? <CheckCircle2 color="#22c55e" size={20} style={{ flexShrink: 0, marginTop: '2px' }}/> : <XCircle color="#ef4444" size={20} style={{ flexShrink: 0, marginTop: '2px' }}/>}
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', lineHeight: '1.5' }}>
+                    {q.qNo}. <span dangerouslySetInnerHTML={{ __html: q.title ? String(q.title).replace(/&lt;/g, '<').replace(/&gt;/g, '>') : '' }} />
+                </div>
+            </div>
+
+            {q.passageText && (
+                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', fontSize: '13px', color: '#475569', marginBottom: '12px', overflowX: 'auto', border: '1px solid #e2e8f0' }}
+                     dangerouslySetInnerHTML={{ __html: String(q.passageText).replace(/&lt;/g, '<').replace(/&gt;/g, '>') }}
+                />
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: q.isCorrect ? '#f0fdf4' : '#fef2f2', padding: '12px', borderRadius: '8px', fontSize: '14px' }}>
+                {!q.isCorrect && (
+                    <div style={{ color: '#b91c1c' }}>
+                        <strong style={{ display: 'inline-block', width: '60px' }}>내 답안:</strong> 
+                        <span style={{ textDecoration: 'line-through', opacity: 0.8 }}>{q.myAnswerText}</span>
+                    </div>
+                )}
+                <div style={{ color: '#15803d', fontWeight: q.isCorrect ? 'bold' : 'normal' }}>
+                    <strong style={{ display: 'inline-block', width: '60px' }}>정답:</strong> {q.realAnswerText}
+                </div>
+            </div>
+
+            {q.explanationText && (
+                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed #e2e8f0', fontSize: '13.5px', color: '#334155', lineHeight: '1.6' }}>
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#0f172a', marginBottom: '6px' }}>
+                        <BookOpen size={14} color="#3b82f6" /> 문제 해설
+                    </strong>
+                    <div dangerouslySetInnerHTML={{ __html: String(q.explanationText).replace(/&lt;/g, '<').replace(/&gt;/g, '>') }} />
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div className="safari-body" style={{ padding: '20px', paddingBottom: '40px', height: '100%', overflowY: 'auto' }}>
+            {/* 1. 상단 정보 (기존 유지) */}
             <div style={{ textAlign: 'center', marginBottom: '24px', marginTop: '10px' }}>
                 <span style={{ fontSize: '12px', fontWeight: 800, color: '#2563eb', background: '#eff6ff', padding: '4px 10px', borderRadius: '12px' }}>
                     {examInfo?.sessionName} {isPracticalExam ? '(실기)' : '(필기)'}
@@ -101,6 +171,7 @@ export default function ExamResult() {
                 </p>
             </div>
 
+            {/* 2. 최종 점수 배너 (기존 유지) */}
             <div style={{
                 background: isPassed ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                 borderRadius: '20px', padding: '30px 20px', color: 'white', textAlign: 'center',
@@ -118,6 +189,7 @@ export default function ExamResult() {
                 </div>
             </div>
 
+            {/* 3. 과목별 통계 (기존 유지) */}
             {!isPracticalExam && hasMultipleSubjects && (
                 <>
                     <h3 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '12px', color: '#1e293b' }}>과목별 분석</h3>
@@ -151,6 +223,27 @@ export default function ExamResult() {
                 </>
             )}
 
+            {/* 🔥 4. 오답 노트 (틀린 문제) 영역 (새로 이식됨!) 🔥 */}
+            {reviewData.incorrectQuestions.length > 0 && (
+                <div style={{ marginBottom: '40px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '2px solid #fee2e2', paddingBottom: '10px' }}>
+                        <XCircle size={20} /> 틀린 문제 리뷰 ({reviewData.incorrectQuestions.length}개)
+                    </h3>
+                    {reviewData.incorrectQuestions.map(q => <ReviewCard key={`incorrect-${q.qNo}`} q={q} />)}
+                </div>
+            )}
+
+            {/* 🔥 5. 정답 노트 (맞춘 문제) 영역 (새로 이식됨!) 🔥 */}
+            {reviewData.correctQuestions.length > 0 && (
+                <div style={{ marginBottom: '40px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '2px solid #dcfce3', paddingBottom: '10px' }}>
+                        <CheckCircle2 size={20} /> 맞춘 문제 리뷰 ({reviewData.correctQuestions.length}개)
+                    </h3>
+                    {reviewData.correctQuestions.map(q => <ReviewCard key={`correct-${q.qNo}`} q={q} />)}
+                </div>
+            )}
+
+            {/* 6. 하단 저장 안내 / 카카오 로그인 유도 (기존 유지) */}
             {isLoggedIn ? (
                 <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
                     <CheckCircle2 size={32} color="#10b981" style={{ margin: '0 auto 10px' }} />

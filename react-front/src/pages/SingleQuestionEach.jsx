@@ -141,12 +141,12 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ 
-                        attemptId: currentAttemptId, 
-                        // 🔥 핵심: 저장할 때 '문제별 해설(single_each)' 모드임을 꼬리표로 강제 주입!
-                        examInfo: { ...examInfo, solveMode: 'single_each' }, 
-                        questions, 
-                        answers 
-                    })
+                    attemptId: currentAttemptId, 
+                    examInfo: { ...examInfo, solveMode: 'omr' }, 
+                    // 🔥 마법의 코드: 서버가 채점/저장할 때 필요한 최소한의 뼈대 데이터만 맵핑해서 보냅니다!
+                    questions: questions.map(q => ({ questionId: q.questionId, qNo: q.qNo, answer: q.answer })),
+                    answers 
+                })
                 })
                 .then(res => res.json())
                 .then(resData => {
