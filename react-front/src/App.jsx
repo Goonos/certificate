@@ -32,7 +32,7 @@ const handleCopyLink = () => {
 // 🚀 1. 앱이 처음 켜질 때 GA 초기화
     useEffect(() => {
         // G- 로 시작하는 본인의 측정 ID를 넣으세요!
-        ReactGA.initialize("G-XXXXXXXXXX"); 
+        ReactGA.initialize("G-QT5NP7Y1RW"); 
     }, []);
 
     // 🚀 2. 화면(location)이 바뀔 때마다 GA에 보고

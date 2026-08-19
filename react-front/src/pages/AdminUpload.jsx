@@ -1,15 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, ShieldCheck, KeyRound, UploadCloud } from 'lucide-react';
-
+import { Lock, ShieldCheck, KeyRound, UploadCloud, Database, Play, RefreshCw } from 'lucide-react';
 export default function AdminUpload() {
+    // 인증 상태 및 비밀번호 상태
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    // 입력된 비밀번호, 저장된 비밀번호, 인증 오류 메시지 상태
     const [passwordInput, setPasswordInput] = useState('');
+    // 입력된 비밀번호, 저장된 비밀번호, 인증 오류 메시지 상태
     const [savedPassword, setSavedPassword] = useState('');
+    // 인증 오류 메시지 상태
     const [authError, setAuthError] = useState('');
-
+    // STG 테이블 데이터 상태
+    const [stgData, setStgData] = useState([]);
+    // PL/SQL 실행 상태
+    const [isExecuting, setIsExecuting] = useState(false);
+    // 엑셀 파일 업로드 상태
     const [file, setFile] = useState(null);
+    // 로딩 상태
     const [isLoading, setIsLoading] = useState(false);
 
+    // STG 테이블 데이터 조회
+    const fetchStgData = () => {
+        fetch('/api/admin/stg-list')
+            .then(res => res.json())
+            .then(resData => {
+                if (resData.success) setStgData(resData.data);
+            })
+            .catch(err => console.error(err));
+    };
+
+    // PL/SQL 실행 처리
+    const handleExecutePlsql = () => {
+        if (!window.confirm('⚠️ 정말로 PL/SQL 프로시저를 실행하시겠습니까?')) return;
+    };
+    useEffect(() => {
+        if (isAuthenticated) fetchStgData();
+    }, [isAuthenticated]);
+
+    // PL/SQL 실행 함수
+    const handleExecutePLSQL = () => {
+        if (!window.confirm('정말 STG 데이터를 운영 테이블로 이관하시겠습니까?\n(SP_EXAM_DATA_LOAD 프로시저가 실행됩니다.)')) return;
+
+        setIsExecuting(true);
+        fetch('/api/admin/execute-plsql', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-password': savedPassword // 보안 통과용
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(`🎉 성공: ${data.message}`);
+                fetchStgData(); // 실행 후 표 다시 새로고침
+            } else {
+                alert(`❌ 오류: ${data.error}`);
+            }
+        })
+        .catch(err => alert('서버 통신 오류'))
+        .finally(() => setIsExecuting(false));
+    };
     // 페이지 진입 시 세션에 기존 인증 내역이 있는지 확인
     useEffect(() => {
         const storedAuth = sessionStorage.getItem('admin_auth');
@@ -169,57 +219,86 @@ export default function AdminUpload() {
 
     // ✅ 인증 완료 시: 엑셀 업로드 관리자 화면
     return (
-        <div style={{ padding: '30px 20px', maxWidth: '560px', margin: '0 auto' }}>
+        <div style={{ padding: '30px 20px', maxWidth: '800px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShieldCheck color="#16a34a" size={24} /> 관리자 백오피스
                 </h2>
-                <button 
-                    onClick={handleLogout}
-                    style={{ background: '#f1f5f9', color: '#64748b', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
-                >
+                <button onClick={handleLogout} style={{ background: '#f1f5f9', color: '#64748b', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>
                     잠금
                 </button>
             </div>
             
-            <div style={{
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '20px',
-                padding: '24px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
-            }}>
-                <p style={{ marginBottom: '20px', color: '#475569', fontSize: '13px', lineHeight: '1.6' }}>
-                    크롤링이나 수작업으로 완성된 <strong>기출문제 엑셀 파일(.xlsx)</strong>을 업로드해 주세요.<br/>
-                    데이터는 <code>QUESTION_STG</code> 테이블로 일괄 적재됩니다.
-                </p>
-
+            {/* 1. 기존 엑셀 업로드 박스 */}
+            <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)', marginBottom: '24px' }}>
+                {/* ... 기존 엑셀 업로드 UI (UploadCloud 아이콘 및 찾아보기 버튼 부분) 유지 ... */}
+                <p style={{ marginBottom: '20px', color: '#475569', fontSize: '13px' }}>엑셀 파일 업로드 (QUESTION_STG 적재)</p>
                 <div style={{ border: '2px dashed #cbd5e1', borderRadius: '14px', padding: '24px', textAlign: 'center', marginBottom: '20px', background: '#f8fafc' }}>
-                    <UploadCloud size={36} color="#64748b" style={{ marginBottom: '8px' }} />
-                    <input 
-                        type="file" 
-                        accept=".xlsx, .xls" 
-                        onChange={handleFileChange}
-                        style={{ display: 'block', margin: '0 auto', fontSize: '13px' }}
-                    />
+                    <input type="file" accept=".xlsx, .xls" onChange={handleFileChange} />
+                </div>
+                <button onClick={handleUpload} disabled={isLoading} style={{ width: '100%', padding: '14px', background: '#16a34a', color: 'white', borderRadius: '12px', border: 'none', fontWeight: '800', cursor: 'pointer' }}>
+                    {isLoading ? '적재 중...' : '엑셀 업로드'}
+                </button>
+            </div>
+
+            {/* 🔥 2. 새로 추가된 STG 테이블 뷰어 및 PL/SQL 실행 박스 */}
+            <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Database size={18} color="#2563eb" /> STG 테이블 대기열
+                    </h3>
+                    <button onClick={fetchStgData} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                        <RefreshCw size={14} /> 새로고침
+                    </button>
                 </div>
 
+                {/* 데이터 그리드 (표) */}
+                <div style={{ overflowX: 'auto', marginBottom: '20px', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                        <thead>
+                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                <th style={{ padding: '10px' }}>STG_ID</th>
+                                <th style={{ padding: '10px' }}>종목</th>
+                                <th style={{ padding: '10px' }}>회차</th>
+                                <th style={{ padding: '10px' }}>문항번호</th>
+                                <th style={{ padding: '10px' }}>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {stgData.length === 0 ? (
+                                <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>대기 중인 데이터가 없습니다.</td></tr>
+                            ) : (
+                                stgData.map((row) => (
+                                    <tr key={row.STG_ID} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                        <td style={{ padding: '10px', color: '#64748b' }}>{row.STG_ID}</td>
+                                        <td style={{ padding: '10px', fontWeight: 'bold' }}>{row.CATEGORY_NAME}</td>
+                                        <td style={{ padding: '10px' }}>{row.EXAM_SESSION}</td>
+                                        <td style={{ padding: '10px' }}>{row.SUBJECT_NO}과목 {row.QUESTION_NO}번</td>
+                                        <td style={{ padding: '10px' }}>
+                                            <span style={{ background: row.STATUS === 'PENDING' ? '#fef3c7' : '#dcfce7', color: row.STATUS === 'PENDING' ? '#d97706' : '#15803d', padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>
+                                                {row.STATUS}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* PL/SQL 실행 버튼 */}
                 <button 
-                    onClick={handleUpload} 
-                    disabled={isLoading}
+                    onClick={handleExecutePLSQL} 
+                    disabled={isExecuting || stgData.length === 0}
                     style={{
-                        width: '100%',
-                        backgroundColor: isLoading ? '#9ca3af' : '#16a34a',
-                        color: 'white',
-                        padding: '14px',
-                        borderRadius: '12px',
-                        border: 'none',
-                        fontWeight: '800',
-                        fontSize: '14px',
-                        cursor: isLoading ? 'not-allowed' : 'pointer'
+                        width: '100%', padding: '14px', background: isExecuting || stgData.length === 0 ? '#94a3b8' : '#2563eb',
+                        color: 'white', border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '14px',
+                        cursor: isExecuting || stgData.length === 0 ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                     }}
                 >
-                    {isLoading ? 'DB 적재 중... ⏳' : '엑셀 업로드 및 DB 적재 🚀'}
+                    <Play size={18} />
+                    {isExecuting ? '프로시저 실행 중... DB 반영 대기' : 'STG ➡️ PROD 이관 프로시저 실행'}
                 </button>
             </div>
         </div>

@@ -9,7 +9,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // 🔒 [보안 1] 비밀번호 검증 API
 router.post('/verify', (req, res) => {
     const { password } = req.body;
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin1234!';
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
     if (password === adminPassword) {
         return res.status(200).json({ success: true, message: '인증 성공' });
@@ -17,11 +17,59 @@ router.post('/verify', (req, res) => {
         return res.status(401).json({ success: false, error: '비밀번호가 일치하지 않습니다.' });
     }
 });
+// 📊 [조회 API] STG 테이블 데이터 조회 (최신 100건 미리보기)
+router.get('/stg-list', async (req, res) => {
+    let connection;
+    try {
+        connection = await oracledb.getConnection();
+        const sql = `
+            SELECT STG_ID, CATEGORY_NAME, EXAM_SESSION, SUBJECT_NO, QUESTION_NO, STATUS
+            FROM QUESTION_STG
+            ORDER BY STG_ID DESC
+            FETCH FIRST 100 ROWS ONLY
+        `;
+        const result = await connection.execute(sql, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+        res.json({ success: true, data: result.rows });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    } finally {
+        if (connection) {
+            try { await connection.close(); } catch (e) {}
+        }
+    }
+});
+
+// 🚀 [실행 API] PL/SQL 프로시저 원클릭 실행
+router.post('/execute-plsql', async (req, res) => {
+    // 🔒 보안: 여기도 비밀번호 헤더 검증을 걸어줍니다 (선택사항)
+    const reqPassword = req.headers['x-admin-password'];
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin1234!';
+    if (reqPassword !== adminPassword) return res.status(403).json({ error: '권한 없음' });
+
+    let connection;
+    try {
+        connection = await oracledb.getConnection();
+        
+        console.log('⚡ PL/SQL 프로시저 (SP_EXAM_DATA_LOAD) 실행 시작...');
+        // Node.js에서 프로시저를 실행하는 정석 방법
+        await connection.execute(`BEGIN SP_EXAM_DATA_LOAD; END;`);
+        console.log('✅ PL/SQL 프로시저 실행 완료!');
+
+        res.json({ success: true, message: 'STG 데이터를 운영 테이블로 성공적으로 이관했습니다!' });
+    } catch (err) {
+        console.error('❌ PL/SQL 실행 오류:', err);
+        res.status(500).json({ success: false, error: err.message });
+    } finally {
+        if (connection) {
+            try { await connection.close(); } catch (e) {}
+        }
+    }
+});
 
 // 🔒 [보안 2] 엑셀 업로드 API (헤더 비밀번호 검증 미들웨어)
 router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
     const reqPassword = req.headers['x-admin-password'];
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin1234!';
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
     if (reqPassword !== adminPassword) {
         return res.status(403).json({ error: '권한이 없습니다. 비밀번호 인증이 필요합니다.' });
