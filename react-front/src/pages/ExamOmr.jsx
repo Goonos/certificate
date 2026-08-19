@@ -94,12 +94,12 @@ export default function ExamOmr() {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ 
-                attemptId: currentAttemptId, 
-                examInfo: { ...examInfo, solveMode: 'omr' }, 
-                // 🔥 마법의 코드: 서버가 채점/저장할 때 필요한 최소한의 뼈대 데이터만 맵핑해서 보냅니다!
-                questions: questions.map(q => ({ questionId: q.questionId, qNo: q.qNo, answer: q.answer })),
-                answers 
-            })
+                    attemptId: currentAttemptId, 
+                    examInfo: { ...examInfo, solveMode: 'omr' }, 
+                    // 🔥 마법의 코드: 서버가 채점/저장할 때 필요한 최소한의 뼈대 데이터만 맵핑해서 보냅니다!
+                    questions: questions.map(q => ({ questionId: q.questionId, qNo: q.qNo, answer: q.answer })),
+                    answers 
+                })
             })
             .then(res => {
                 if (!res.ok) throw new Error("서버 저장 실패");
@@ -226,15 +226,26 @@ export default function ExamOmr() {
                                         </div>
                                     </div>
 
-                                    {/* 🔥 2. 지문 (HTML 디코딩 렌더링) 🔥 */}
+                                    {/* 🔥 2. 지문 (HTML 디코딩 렌더링) - 가로 스크롤 & 화면 튕김 방지 완벽 적용 🔥 */}
                                     {q.passageText && (
                                         <div 
                                             style={{ 
-                                                background: '#f8fafc', padding: '14px', borderRadius: '10px', 
-                                                fontSize: '13px', color: '#334155', border: '1px solid #e2e8f0', 
-                                                marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.5',
-                                                overflowX: 'auto' 
+                                                background: '#f8fafc', 
+                                                padding: '12px 14px', /* 패딩 최적화 */
+                                                borderRadius: '10px', 
+                                                fontSize: '11px', /* 폰트 축소 */
+                                                color: '#334155', 
+                                                border: '1px solid #e2e8f0', 
+                                                marginBottom: '16px', 
+                                                whiteSpace: 'pre-wrap', 
+                                                lineHeight: '1.4', 
+                                                overflowX: 'auto', /* 가로 스크롤 가능 */
+                                                WebkitOverflowScrolling: 'touch', 
+                                                overscrollBehaviorX: 'contain' /* 화면 튕김(바운스) 방지 핵심 */
                                             }}
+                                            onTouchStart={(e) => e.stopPropagation()}
+                                            onTouchMove={(e) => e.stopPropagation()}
+                                            onWheel={(e) => e.stopPropagation()}
                                             dangerouslySetInnerHTML={{ 
                                                 __html: q.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
                                             }} 

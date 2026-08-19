@@ -135,15 +135,19 @@ router.post('/questions/single-mode', async (req, res) => {
     const { categoryId, typeCode, subjectNos, modeType, examSession, startSession, endSession, limit = 20 } = req.body;
 
     try {
-        // 1. 기본 쿼리 (TO_CHAR로 타입 변환 안전하게 적용)
+        // 1. 기본 쿼리 (🔥 S.QUESTION_COUNT 메타데이터 추가, 조인 조건 강화)
         let sql = `
             SELECT Q.QUESTION_ID, Q.CATEGORY_ID, S.SUBJECT_NAME, Q.SUBJECT_NO, 
             Q.EXAM_SESSION, Q.QUESTION_NO, 
-            TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT,   /* 🔥 여기 수정 */
-            TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, /* 🔥 여기 수정 */
-            Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
+            TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT,   
+            TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, 
+            Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT,
+            NVL(S.QUESTION_COUNT, 20) AS QUESTION_COUNT /* 🔥 과목별 문제 수 동적 할당 (없으면 20) */
             FROM EXAM_QUESTION Q
-            LEFT JOIN EXAM_SUBJECT S ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+            LEFT JOIN EXAM_SUBJECT S 
+              ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
+             AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+             AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE /* 시험 유형 조건 추가 */
             WHERE TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(:categoryId) AND Q.QUESTION_TYPE = :typeCode
             `;
         
@@ -151,7 +155,6 @@ router.post('/questions/single-mode', async (req, res) => {
 
         // 2. 모드에 따른 쿼리 분기
         if (modeType === 'RANDOM_20') {
-            // 🔥 [수정 포인트] 랜덤 20제는 과목 검사를 하지 않고 지정 회차에서 바로 랜덤 추출
             sql += ` AND Q.EXAM_SESSION = :examSession`;
             bindParams.examSession = examSession;
 
@@ -164,7 +167,7 @@ router.post('/questions/single-mode', async (req, res) => {
             bindParams.limitCount = parseInt(limit, 10);
             
         } else {
-            // 기존 모드들 (지정 회차, 범위 랜덤) - 여기서는 기존처럼 과목 필수 검사 수행
+            // 지정 회차 & 범위 회차는 과목 필수 검사 수행
             if (typeCode !== '02' && (!subjectNos || subjectNos.length === 0)) {
                 return res.status(400).json({ error: "최소 하나 이상의 과목을 선택해 주세요." });
             }
@@ -183,18 +186,23 @@ router.post('/questions/single-mode', async (req, res) => {
             if (modeType === 'DESIGNATED') {
                 sql += ` AND Q.EXAM_SESSION = :examSession ORDER BY Q.SUBJECT_NO ASC, Q.QUESTION_NO ASC`;
                 bindParams.examSession = examSession;
+
             } else if (modeType === 'RANGE') {
-                sql += ` AND Q.EXAM_SESSION BETWEEN :startSession AND :endSession`;
+                // 🔥 [핵심 1] 유저가 회차를 역순으로 골라도 오라클이 알아서 정렬하도록 LEAST, GREATEST 함수 적용!
+                sql += ` AND Q.EXAM_SESSION BETWEEN LEAST(:startSession, :endSession) AND GREATEST(:startSession, :endSession)`;
                 bindParams.startSession = startSession;
                 bindParams.endSession = endSession;
 
+                // 🔥 [핵심 2] 메타 테이블의 QUESTION_COUNT 개수만큼만 정확히 잘라서 뽑아오는 로직 적용!
                 sql = `
                     SELECT * FROM (
-                        ${sql}
-                        ORDER BY DBMS_RANDOM.VALUE
-                    ) WHERE ROWNUM <= :limitCount
+                        SELECT T.*,
+                               ROW_NUMBER() OVER(PARTITION BY T.SUBJECT_NO ORDER BY DBMS_RANDOM.VALUE) AS RND_RN
+                        FROM ( ${sql} ) T
+                    )
+                    WHERE RND_RN <= QUESTION_COUNT
+                    ORDER BY SUBJECT_NO, RND_RN
                 `;
-                bindParams.limitCount = parseInt(limit, 10);
             }
         }
 
@@ -234,6 +242,7 @@ router.post('/questions/single-mode', async (req, res) => {
             });
         }
 
+        // 프론트엔드가 딱 원하는 포맷 { total, questions } 로 반환!
         res.json({ total: questions.length, questions: questions });
 
     } catch (err) {

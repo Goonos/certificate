@@ -31,6 +31,7 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
     // 문제 데이터 로드 (이어풀기 vs 신규 생성)
     useEffect(() => {
         if (currentAttemptId) {
+            // 🔥 이어풀기 모드
             fetch(`/api/exam/questions/resume/${currentAttemptId}`, { credentials: 'include' })
             .then(res => {
                 if (!res.ok) throw new Error("이어풀기 문제를 불러오지 못했습니다.");
@@ -49,15 +50,25 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                 setIsLoading(false);
             });
         } else {
+            // 🔥 새 시험 모드: 모달창에서 선택한 범위 정보를 백엔드에 완벽하게 넘겨줌!
             fetch('/api/exam/questions/single-mode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                body: JSON.stringify({ 
+                    attemptId: currentAttemptId, 
+                    // 모달에서 세팅된 값들을 개별 파라미터로 뽑아서 백엔드로 전송
                     categoryId: examInfo.categoryId,
                     typeCode: examInfo.typeCode,
+                    subjectNos: examInfo.subjectNos || [],
+                    modeType: examInfo.modeType || 'DESIGNATED', // RANGE, RANDOM_20 등
                     examSession: examInfo.sessionName,
-                    modeType: 'RANDOM_20',
-                    limit: 20
+                    startSession: examInfo.startSession,         // 범위 시작 회차
+                    endSession: examInfo.endSession,             // 범위 끝 회차
+                    limit: 20, // 필요한 경우 문제 수 제한
+                    
+                    examInfo: { ...examInfo, solveMode: 'single_end' }, 
+                    questions: questions.map(q => ({ questionId: q.questionId, qNo: q.qNo, answer: q.answer })),
+                    answers 
                 })
             })
             .then(res => {
@@ -258,15 +269,27 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                             </div>
                         </div>
 
-                        {currentQ.passageText && (
+                        {currentQ.passageText && ( // ExamOmr.jsx의 경우 currentQ 대신 q.passageText 일 수 있습니다.
                             <div 
                                 style={{ 
-                                    background: '#f8fafc', padding: '14px', borderRadius: '10px', 
-                                    fontSize: '13px', color: '#334155', border: '1px solid #e2e8f0', 
-                                    marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.5',
-                                    overflowX: 'auto' /* 💡 표가 모바일 화면보다 넓을 때 가로 스크롤을 만들어주는 필수 옵션 */
+                                    background: '#f8fafc', 
+                                    padding: '12px 14px', 
+                                    borderRadius: '10px', 
+                                    fontSize: '11px', 
+                                    color: '#334155', 
+                                    border: '1px solid #e2e8f0', 
+                                    marginBottom: '16px', 
+                                    whiteSpace: 'pre-wrap', 
+                                    lineHeight: '1.4', 
+                                    overflowX: 'auto', 
+                                    WebkitOverflowScrolling: 'touch', 
+                                    overscrollBehaviorX: 'contain' 
                                 }}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchMove={(e) => e.stopPropagation()}
+                                onWheel={(e) => e.stopPropagation()}
                                 dangerouslySetInnerHTML={{ 
+                                    // ExamOmr.jsx 에서는 currentQ 대신 map에서 사용한 변수명(예: q)을 사용하세요.
                                     __html: currentQ.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
                                 }}
                             />
