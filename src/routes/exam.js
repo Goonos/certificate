@@ -482,36 +482,33 @@ router.post('/submit', authenticateUser, async (req, res) => {
 router.get('/questions/range', async (req, res) => {
     const { categoryId, typeCode, startSession, endSession } = req.query;
 
+    // 🔥 [디버깅용 로그 추가] 프론트엔드가 뭘 보냈는지 터미널에서 확인!
+    console.log("==== [범위 회차 요청 파라미터] ====");
+    console.log("categoryId:", categoryId, "typeCode:", typeCode);
+    console.log("startSession:", startSession, "endSession:", endSession);
+
     let connection;
     try {
         connection = await oracledb.getConnection();
         
-        // 🔥 메타 테이블 없이, 원본 데이터의 과목별 문항 수를 스스로 추론하는 쿼리
+        // 💡 메타 테이블(EXAM_SUBJECT)을 조인하여 과목별 문제 수를 동적으로 가져오는 최적화 쿼리
         const sql = `
-            WITH TargetScope AS (
-                -- 1단계: 지정한 범위의 문제들을 모두 가져오고, 과목별로 섞기
+            SELECT Q.*
+            FROM (
                 SELECT Q.*,
-                       ROW_NUMBER() OVER(PARTITION BY SUBJECT_NO ORDER BY DBMS_RANDOM.VALUE) AS RND_RN
+                       S.QUESTION_COUNT,
+                       ROW_NUMBER() OVER(PARTITION BY Q.SUBJECT_NO ORDER BY DBMS_RANDOM.VALUE) AS RND_RN
                 FROM EXAM_QUESTION Q
-                WHERE CATEGORY_ID = :categoryId
-                  AND EXAM_TYPE_CODE = :typeCode
-                  AND EXAM_SESSION BETWEEN :startSession AND :endSession
-            ),
-            SubjectCount AS (
-                -- 2단계: 기준이 될 '아무 단일 회차'를 하나 잡아서 과목별 실제 문항 수가 몇 개인지 센다
-                SELECT SUBJECT_NO, COUNT(*) AS REAL_Q_COUNT
-                FROM EXAM_QUESTION
-                WHERE CATEGORY_ID = :categoryId
-                  AND EXAM_TYPE_CODE = :typeCode
-                  AND EXAM_SESSION = :startSession  -- 💡 기준 회차 (시작 회차의 과목별 문제 수를 기준으로 잡음)
-                GROUP BY SUBJECT_NO
-            )
-            -- 3단계: 섞은 문제들 중에서, 2단계에서 알아낸 실제 문항 수(REAL_Q_COUNT) 이하까지만 커팅!
-            SELECT T.*
-            FROM TargetScope T
-            JOIN SubjectCount S ON T.SUBJECT_NO = S.SUBJECT_NO
-            WHERE T.RND_RN <= S.REAL_Q_COUNT
-            ORDER BY T.SUBJECT_NO, T.RND_RN
+                JOIN EXAM_SUBJECT S 
+                  ON Q.CATEGORY_ID = S.CATEGORY_ID 
+                 AND Q.EXAM_TYPE_CODE = S.EXAM_TYPE_CODE 
+                 AND Q.SUBJECT_NO = S.SUBJECT_NO
+                WHERE Q.CATEGORY_ID = :categoryId
+                  AND Q.EXAM_TYPE_CODE = :typeCode
+                  AND Q.EXAM_SESSION BETWEEN :startSession AND :endSession
+            ) Q
+            WHERE Q.RND_RN <= Q.QUESTION_COUNT
+            ORDER BY Q.SUBJECT_NO, Q.RND_RN
         `;
 
         const binds = {
