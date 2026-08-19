@@ -15,8 +15,8 @@ app.use(cors({
     origin: ['http://localhost:5173', 'http://자격증공부.com', 'https://자격증공부.com', 'http://www.자격증공부.com'],    
     credentials: true // 쿠키 주고받기 허용
 }));
-app.use(express.json()); 
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser()); // 🔥 JWT 토큰을 쿠키로 읽기 위해 필수!
 app.use('/api/admin', require('./routes/admin'));
 
