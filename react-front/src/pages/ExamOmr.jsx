@@ -254,9 +254,9 @@ export default function ExamOmr() {
                                                 touchAction: 'pan-x'
                                             }}
                                             dangerouslySetInnerHTML={{ 
-                                                __html: currentQ.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
+                                                __html: q.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
                                             }} 
-                                        />
+                                            />
                                     )}
 
                                     {/* 3. 보기 버튼들 (객관식/주관식) */}
