@@ -277,31 +277,37 @@ export default function SingleQuestion() {
                         </div>
 
                         {/* 지문 유무 확인 */}
-                        {currentQ.passageText && ( // ExamOmr.jsx의 경우 currentQ 대신 q.passageText 일 수 있습니다.
-                            <div 
-                                style={{ 
-                                    background: '#f8fafc', 
-                                    padding: '12px 14px', 
-                                    borderRadius: '10px', 
-                                    fontSize: '11px', 
-                                    color: '#334155', 
-                                    border: '1px solid #e2e8f0', 
-                                    marginBottom: '16px', 
-                                    whiteSpace: 'pre-wrap', 
-                                    lineHeight: '1.4', 
-                                    overflowX: 'auto', 
-                                    WebkitOverflowScrolling: 'touch', 
-                                    overscrollBehaviorX: 'contain' 
-                                }}
-                                onTouchStart={(e) => e.stopPropagation()}
-                                onTouchMove={(e) => e.stopPropagation()}
-                                onWheel={(e) => e.stopPropagation()}
-                                dangerouslySetInnerHTML={{ 
-                                    // ExamOmr.jsx 에서는 currentQ 대신 map에서 사용한 변수명(예: q)을 사용하세요.
-                                    __html: currentQ.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
-                                }}
-                            />
-                        )}
+                        {currentQ.passageText && ( // 💡 ExamOmr.jsx에서는 currentQ 대신 q.passageText 로 맞춰주세요!
+                                        <div 
+                                            style={{ 
+                                                background: '#f8fafc', 
+                                                padding: '12px 14px', 
+                                                borderRadius: '10px', 
+                                                fontSize: '11px', 
+                                                color: '#334155', 
+                                                border: '1px solid #e2e8f0', 
+                                                marginBottom: '16px', 
+                                                whiteSpace: 'pre-wrap', 
+                                                lineHeight: '1.5', 
+                                                
+                                                // 🚨 [핵심 1] 박스가 스마트폰 화면 밖으로 무한정 늘어나는 것 강제 차단
+                                                display: 'block',
+                                                width: '100%',
+                                                maxWidth: '100%', 
+
+                                                // 🚨 [핵심 2] 독립적인 가로 스크롤 생성
+                                                overflowX: 'auto', 
+                                                WebkitOverflowScrolling: 'touch', 
+
+                                                // 🚨 [핵심 3] 모바일 브라우저의 '화면 뒤로가기/당김' 제스처 완벽 무시
+                                                overscrollBehaviorX: 'contain', 
+                                                touchAction: 'pan-x'
+                                            }}
+                                            dangerouslySetInnerHTML={{ 
+                                                __html: currentQ.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
+                                            }} 
+                                        />
+                                    )}
 
                         {/* 보기(객관식) vs 주관식 입력창 */}
                         {currentQ.options && currentQ.options.length > 0 ? (
