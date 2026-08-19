@@ -201,7 +201,7 @@ export default function ExamResult() {
 
                             return (
                                 <div key={subNo} style={{
-                                    background: '#ffffff', border: isFail ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                                    background: 'var(--card-bg)', border: isFail ? '1px solid #fca5a5' : '1px solid #e2e8f0',
                                     borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                                 }}>
                                     <div>
