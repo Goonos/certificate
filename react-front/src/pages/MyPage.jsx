@@ -1,6 +1,7 @@
 // src/pages/MyPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import SolveModeBadge from '../components/SolveModeBadge'; // 🔥 뱃지 컴포넌트 추가!
 import { User, Clock, CheckCircle2, XCircle, ChevronRight, Award, LogOut, MessageCircle } from 'lucide-react';
 
 export default function MyPage() {
@@ -43,7 +44,7 @@ export default function MyPage() {
         if (exam.solveMode === 'single_end' || exam.solveMode === 'SINGLE') {
             targetRoute = '/single-question'; // 종료 후 해설 모드
         } else if (exam.solveMode === 'single_each') {
-            targetRoute = '/single-question-each'; // 문제별 해설 모드 (App.js의 라우트명과 일치해야 함)
+            targetRoute = '/single-question-each'; // 문제별 해설 모드
         }
 
         navigate(targetRoute, {
@@ -141,36 +142,26 @@ export default function MyPage() {
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {inProgressExams.map(exam => {
-                            const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';                            
-                            return (
-                                <div key={exam.attemptId} onClick={() => handleResumeExam(exam)} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                                    <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '1px 6px', borderRadius: '6px' }}>
-                                                {exam.sessionName}
-                                            </span>
-                                            {/* 🔥 방식 태그 (OMR vs 한문제씩) 추가 */}
-                                            <span style={{ 
-                                                fontSize: '10px', fontWeight: 800, 
-                                                color: isSingle ? '#7c3aed' : '#0284c7', 
-                                                background: isSingle ? '#f3e8ff' : '#e0f2fe', 
-                                                padding: '1px 6px', borderRadius: '6px' 
-                                            }}>
-                                                {isSingle ? '한문제씩' : 'OMR'}
-                                            </span>
-                                            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>{exam.categoryName}</h4>
-                                        </div>
-                                        <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                                            진행률: <strong style={{ color: '#2563eb' }}>{exam.solvedCount}</strong> / {exam.totalCount} 문제
-                                        </p>
+                        {inProgressExams.map(exam => (
+                            <div key={exam.attemptId} onClick={() => handleResumeExam(exam)} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '1px 6px', borderRadius: '6px' }}>
+                                            {exam.sessionName}
+                                        </span>
+                                        {/* 🔥 해결: 여기 하드코딩 부분을 뱃지 컴포넌트로 완벽 대체! */}
+                                        <SolveModeBadge solveMode={exam.solveMode} />
+                                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>{exam.categoryName}</h4>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', color: '#2563eb', fontSize: '13px', fontWeight: 700 }}>
-                                        <span>이어풀기</span><ChevronRight size={18} />
-                                    </div>
+                                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                                        진행률: <strong style={{ color: '#2563eb' }}>{exam.solvedCount}</strong> / {exam.totalCount} 문제
+                                    </p>
                                 </div>
-                            );
-                        })}
+                                <div style={{ display: 'flex', alignItems: 'center', color: '#2563eb', fontSize: '13px', fontWeight: 700 }}>
+                                    <span>이어풀기</span><ChevronRight size={18} />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </section>
@@ -190,51 +181,42 @@ export default function MyPage() {
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        {completedExams.map(exam => {
-                                const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';                            
-                                return (
-                                <div key={exam.attemptId} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #f1f5f9' }}>
-                                        <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: '6px' }}>
-                                                    {exam.sessionName}
-                                                </span>
-                                                <span style={{ 
-                                                    fontSize: '10px', fontWeight: 800, 
-                                                    color: isSingle ? '#7c3aed' : '#0284c7', 
-                                                    background: isSingle ? '#f3e8ff' : '#e0f2fe', 
-                                                    padding: '1px 6px', borderRadius: '6px' 
-                                                }}>
-                                                    {isSingle ? '한문제씩' : 'OMR'}
-                                                </span>
-                                            </div>
-                                            <h4 style={{ margin: '4px 0 0 0', fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{exam.categoryName}</h4>
+                        {completedExams.map(exam => (
+                            <div key={exam.attemptId} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #f1f5f9' }}>
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: '6px' }}>
+                                                {exam.sessionName}
+                                            </span>
+                                            {/* 🔥 해결: 완료된 시험 카드에도 뱃지 컴포넌트 추가! */}
+                                            <SolveModeBadge solveMode={exam.solveMode} />
                                         </div>
-                                        {exam.isPassed ? (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}><CheckCircle2 size={14} /> 합격 ({exam.score}점)</div>
-                                        ) : (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#fee2e2', color: '#b91c1c', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}><XCircle size={14} /> 불합격 ({exam.score}점)</div>
+                                        <h4 style={{ margin: '4px 0 0 0', fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{exam.categoryName}</h4>
+                                    </div>
+                                    {exam.isPassed ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}><CheckCircle2 size={14} /> 합격 ({exam.score}점)</div>
+                                    ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#fee2e2', color: '#b91c1c', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}><XCircle size={14} /> 불합격 ({exam.score}점)</div>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>과목별 성적</span>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                        {exam.subjects && exam.subjects.map(sub => (
+                                            <div key={sub.subjectNo} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', fontWeight: '700', background: sub.score < 40 ? '#fef2f2' : '#f8fafc', color: sub.score < 40 ? '#ef4444' : '#334155', border: sub.score < 40 ? '1px solid #fca5a5' : '1px solid #e2e8f0' }}>
+                                                {sub.subjectNo}과목: <strong>{sub.score}점</strong> {sub.score < 40 && '(과락)'}
+                                            </div>
+                                        ))}
+                                        {(!exam.subjects || exam.subjects.length === 0) && (
+                                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>단일 과목 (세부 성적 없음)</div>
                                         )}
                                     </div>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>과목별 성적</span>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                            {exam.subjects && exam.subjects.map(sub => (
-                                                <div key={sub.subjectNo} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', fontWeight: '700', background: sub.score < 40 ? '#fef2f2' : '#f8fafc', color: sub.score < 40 ? '#ef4444' : '#334155', border: sub.score < 40 ? '1px solid #fca5a5' : '1px solid #e2e8f0' }}>
-                                                    {sub.subjectNo}과목: <strong>{sub.score}점</strong> {sub.score < 40 && '(과락)'}
-                                                </div>
-                                            ))}
-                                            {(!exam.subjects || exam.subjects.length === 0) && (
-                                                <div style={{ fontSize: '11px', color: '#94a3b8' }}>단일 과목 (세부 성적 없음)</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div style={{ marginTop: '10px', textAlign: 'right', fontSize: '11px', color: '#94a3b8' }}>응시일자: {exam.completeDt}</div>
                                 </div>
-                            );
-                        })}
+                                <div style={{ marginTop: '10px', textAlign: 'right', fontSize: '11px', color: '#94a3b8' }}>응시일자: {exam.completeDt}</div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </section>

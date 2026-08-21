@@ -5,7 +5,6 @@ import React, { useState, useEffect } from 'react';
 import HtmlContent from '../components/HtmlContent';
 
 
-
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';export default function SingleQuestionEach() {
 
@@ -339,12 +338,8 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                                 <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
                                     <strong style={{ color: '#0f172a', display: 'block', marginBottom: '8px', fontSize: '14px' }}>💡 문제 해설:</strong>
                                     
-                                    {/* 🔥 단순 텍스트 출력을 HtmlContent 컴포넌트로 교체하여 이미지/줄바꿈 완벽 렌더링! */}
-                                    {currentQ.explanationText && currentQ.explanationText.trim() !== '' ? (
-                                        <HtmlContent content={currentQ.explanationText} type="explanation" />
-                                    ) : (
-                                        <div style={{ color: '#94a3b8' }}>등록된 해설이 없습니다.</div>
-                                    )}
+                                    {/* 🔥 HTML 태그(이미지, 줄바꿈)를 문자가 아닌 실제 UI로 렌더링! */}
+                                    <HtmlContent content={currentQ.passageText} type="passage" />
                                 </div>
                             </div>
                         )}
