@@ -188,12 +188,12 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ 
-                    attemptId: currentAttemptId, 
-                    examInfo: { ...examInfo, solveMode: 'omr' }, 
-                    // 🔥 마법의 코드: 서버가 채점/저장할 때 필요한 최소한의 뼈대 데이터만 맵핑해서 보냅니다!
-                    questions: questions.map(q => ({ questionId: q.questionId, qNo: q.qNo, answer: q.answer })),
-                    answers 
-                })
+                        attemptId: currentAttemptId, 
+                        // 🔥 OCP 과목이든 뭐든 묻지도 따지지도 않고 single_each 강제 덮어쓰기!
+                        examInfo: { ...examInfo, solveMode: 'single_each' }, 
+                        questions, 
+                        answers 
+                    })
                 })
                 .then(res => res.json())
                 .then(resData => {
@@ -205,6 +205,7 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
     };
 
     // 최종 제출
+    // 📌 [최종 제출] - OCP 포함 모든 과목 무조건 single_each 강제!
     const handleSubmit = () => {
         if (questions.length === 0) return;
 
@@ -239,7 +240,7 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                     setTimeout(() => {
                         navigate('/exam-result', {
                             state: {
-                                // 🔥 핵심: 제출해서 결과창으로 넘길 때도 꼬리표 강제 주입!
+                                // 🔥 결과창으로 넘길 때도 OCP 등 묻지 않고 single_each 강제 주입!
                                 examInfo: { ...examInfo, solveMode: 'single_each' },      
                                 questions,     
                                 answers,       
