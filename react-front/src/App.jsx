@@ -122,24 +122,25 @@ setIsDrawerOpen(false);
 };
 
 const handleResumeExam = (exam) => {
-setIsDrawerOpen(false); // 드로어 닫기
-let targetRoute = '/exam-omr';
-if (exam.solveMode === 'single_each') {
-targetRoute = '/single-question-each';
-} else if (exam.solveMode === 'single_end' || exam.solveMode === 'SINGLE') {
-targetRoute = '/single-question';
-}
+    setIsDrawerOpen(false); // 드로어 닫기
+    
+    let targetRoute = '/exam-omr'; // 기본값
+    if (exam.solveMode === 'single_end' || exam.solveMode === 'SINGLE') {
+        targetRoute = '/single-question';
+    } else if (exam.solveMode === 'single_each') {
+        targetRoute = '/single-question-each'; 
+    }
 
-navigate(targetRoute, {
-state: {
-categoryId: exam.categoryId,
-categoryName: exam.categoryName,
-typeCode: exam.typeCode,
-sessionName: exam.sessionName,
-attemptId: exam.attemptId,
-solveMode: exam.solveMode
-}
-});
+    navigate(targetRoute, {
+        state: {
+            categoryId: exam.categoryId,
+            categoryName: exam.categoryName,
+            typeCode: exam.typeCode,
+            sessionName: exam.sessionName,
+            attemptId: exam.attemptId,
+            solveMode: exam.solveMode
+        }
+    });
 };
 
 const handleAuth = () => {
@@ -243,12 +244,15 @@ return (
 <div style={{ fontSize: '12px', color: '#94a3b8', padding: '8px 4px' }}>진행 중인 기출문제가 없습니다.</div>
 ) : (
 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+// App.jsx 내의 myExamData.inProgressExams.map 부분
 {myExamData.inProgressExams.map(exam => {
-const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';
-return (
-<div
-key={exam.attemptId}
-onClick={() => handleResumeExam(exam)}
+    // 👇 single_each 조건 추가! 👇
+    const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';
+    
+    return (
+        <div 
+            key={exam.attemptId} 
+            onClick={() => handleResumeExam(exam)}
 style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px', cursor: 'pointer', fontSize: '12px' }}
 >
 <div style={{ fontWeight: 700, color: '#0f172a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

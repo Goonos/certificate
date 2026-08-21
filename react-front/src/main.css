@@ -519,13 +519,14 @@ body {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #cbd5e1;
-    color: white;
+    background: var(--border);
+    color: var(--text-h);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
     font-weight: 700;
+    flex-shrink: 0; /* 🔥 텍스트 길이에 밀려 찌그러지는 현상 방지! */
 }
 
 .option-btn.selected .opt-number {
@@ -797,4 +798,25 @@ body {
 
 .floating-submit-btn:active {
     transform: scale(0.94);
+}
+
+/* =======================================
+   지문(Passage) 영역 및 이미지 자동 리사이징
+   ======================================= */
+.passage-box {
+    margin-top: 15px;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--text-main);
+    word-break: break-word;
+}
+
+/* 🔥 이미지가 튀어나가지 않게 무조건 폭을 100% 이하로 제한! */
+.passage-box img {
+    max-width: calc(100vw - 70px) !important; 
+    height: auto !important;
+    display: block;
+    margin: 10px 0;
+    border-radius: 8px;
+    object-fit: contain;
 }

@@ -130,6 +130,17 @@ code {
     margin: 10px 0;
 }
 
+/* ==========================================
+   지문(Passage) 내부 이미지 리사이징 자동화
+========================================== */
+.passage-box img {
+    max-width: 100% !important;  /* 부모 요소(웹사이트 가로폭)를 넘지 않음 */
+    height: auto !important;     /* 이미지 비율 유지 */
+    display: block;
+    margin: 10px 0;              /* 이미지 위아래 여백 */
+    border-radius: 8px;          /* 모서리 둥글게 */
+}
+
 .passage-box th, .passage-box td {
     border: 1px solid #d1d5db;
     padding: 8px 12px;

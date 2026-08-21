@@ -98,18 +98,20 @@ router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
         const insertSql = `
             INSERT INTO QUESTION_STG (
                 STG_ID, CATEGORY_NAME, EXAM_SESSION, SUBJECT_NO, QUESTION_NO, QUESTION_TYPE,
-                PASSAGE_TEXT, QUESTION_TEXT, OPTION_1, OPTION_2, OPTION_3, OPTION_4,
+                PASSAGE_TEXT, QUESTION_TEXT, 
+                OPTION_1, OPTION_2, OPTION_3, OPTION_4, OPTION_5, OPTION_6, OPTION_7, OPTION_8,
                 ANSWER_TEXT, EXPLANATION_TEXT, STATUS
             ) VALUES (
                 QUESTION_STG_SEQ.NEXTVAL, 
                 :CATEGORY_NAME, :EXAM_SESSION, :SUBJECT_NO, :QUESTION_NO, :QUESTION_TYPE,
-                :PASSAGE_TEXT, :QUESTION_TEXT, :OPTION_1, :OPTION_2, :OPTION_3, :OPTION_4,
+                :PASSAGE_TEXT, :QUESTION_TEXT, 
+                :OPTION_1, :OPTION_2, :OPTION_3, :OPTION_4, :OPTION_5, :OPTION_6, :OPTION_7, :OPTION_8,
                 :ANSWER_TEXT, :EXPLANATION_TEXT, 'PENDING'
             )
         `;
 
         const options = {
-            autoCommit: true,
+            autoCommit: true, 
             bindDefs: {
                 CATEGORY_NAME: { type: oracledb.STRING, maxSize: 100 },
                 EXAM_SESSION: { type: oracledb.STRING, maxSize: 50 },
@@ -117,13 +119,18 @@ router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
                 QUESTION_NO: { type: oracledb.NUMBER },
                 QUESTION_TYPE: { type: oracledb.STRING, maxSize: 10 },
                 PASSAGE_TEXT: { type: oracledb.STRING, maxSize: 500000 }, 
-                QUESTION_TEXT: { type: oracledb.STRING, maxSize: 500000 },
+                QUESTION_TEXT: { type: oracledb.STRING, maxSize: 500000 }, 
                 OPTION_1: { type: oracledb.STRING, maxSize: 1000 },
                 OPTION_2: { type: oracledb.STRING, maxSize: 1000 },
                 OPTION_3: { type: oracledb.STRING, maxSize: 1000 },
                 OPTION_4: { type: oracledb.STRING, maxSize: 1000 },
+                // 🔥 추가된 5~8번 보기 맵핑 규칙
+                OPTION_5: { type: oracledb.STRING, maxSize: 1000 },
+                OPTION_6: { type: oracledb.STRING, maxSize: 1000 },
+                OPTION_7: { type: oracledb.STRING, maxSize: 1000 },
+                OPTION_8: { type: oracledb.STRING, maxSize: 1000 },
                 ANSWER_TEXT: { type: oracledb.STRING, maxSize: 1000 },
-                EXPLANATION_TEXT: { type: oracledb.STRING, maxSize: 500000 }
+                EXPLANATION_TEXT: { type: oracledb.STRING, maxSize: 500000 } 
             }
         };
 

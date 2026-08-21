@@ -1,7 +1,29 @@
 // src/pages/SingleQuestionEach.jsx
+import OmrRow from '../components/OmrRow';
+import OptionGroup from '../components/OptionGroup';
 import React, { useState, useEffect } from 'react';
+import HtmlContent from '../components/HtmlContent';
+
+
+
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';export default function SingleQuestionEach() {
+
+
+
+    const formatHtmlContent = (htmlStr) => {
+        if (!htmlStr) return '';
+        // 1. 깨진 HTML 태그(해설) 복구
+        let html = htmlStr.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        
+        // 2. <img> 태그를 찾아 기존 속성을 날리고 모바일 화면 폭에 맞춰 100%로 주입
+        return html.replace(/<img([^>]*)>/gi, (match, attrs) => {
+            const cleanAttrs = attrs.replace(/(width|height)\s*=\s*["'][^"']*["']/gi, '');
+            // 라이트 모드(하얀 배경)에 맞는 기본 디자인만 적용
+            return `<img ${cleanAttrs} width="100%" style="max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />`;
+        });
+    };
+
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -116,8 +138,23 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
         return `${h}:${m}:${s}`;
     };
 
-    const handleAnswerChange = (qNo, val) => {
-        setAnswers(prev => ({ ...prev, [qNo]: val }));
+    const handleAnswerChange = (qNo, val, isMulti = false) => {
+        setAnswers(prev => {
+            if (!isMulti) {
+                return { ...prev, [qNo]: val };
+            }
+
+            const currentAns = String(prev[qNo] || '');
+            let newAns;
+            
+            if (currentAns.includes(String(val))) {
+                newAns = currentAns.replace(String(val), '');
+            } else {
+                newAns = (currentAns + String(val)).split('').sort().join('');
+            }
+            
+            return { ...prev, [qNo]: newAns };
+        });
     };
 
     // 문제 이동 시 해설창을 다시 닫아주는 처리
@@ -269,55 +306,15 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                             </div>
                         </div>
 
-                        {currentQ.passageText && ( // 💡 ExamOmr.jsx에서는 currentQ 대신 q.passageText 로 맞춰주세요!
-                                        <div 
-                                            style={{ 
-                                                background: '#f8fafc', 
-                                                padding: '12px 14px', 
-                                                borderRadius: '10px', 
-                                                fontSize: '11px', 
-                                                color: '#334155', 
-                                                border: '1px solid #e2e8f0', 
-                                                marginBottom: '16px', 
-                                                whiteSpace: 'pre-wrap', 
-                                                lineHeight: '1.5', 
-                                                
-                                                // 🚨 [핵심 1] 박스가 스마트폰 화면 밖으로 무한정 늘어나는 것 강제 차단
-                                                display: 'block',
-                                                width: '100%',
-                                                maxWidth: '100%', 
-
-                                                // 🚨 [핵심 2] 독립적인 가로 스크롤 생성
-                                                overflowX: 'auto', 
-                                                WebkitOverflowScrolling: 'touch', 
-
-                                                // 🚨 [핵심 3] 모바일 브라우저의 '화면 뒤로가기/당김' 제스처 완벽 무시
-                                                overscrollBehaviorX: 'contain', 
-                                                touchAction: 'pan-x'
-                                            }}
-                                            dangerouslySetInnerHTML={{ 
-                                                __html: currentQ.passageText.replace(/&lt;/g, '<').replace(/&gt;/g, '>') 
-                                            }} 
-                                        />
-                                    )}
+                        <HtmlContent content={currentQ.passageText} type="passage" />
 
                         {currentQ.options && currentQ.options.length > 0 ? (
-                            <div className="options-group">
-                                {currentQ.options.map((opt, idx) => {
-                                    const optNo = idx + 1;
-                                    const isSelected = answers[currentQ.qNo] === optNo;
-                                    return (
-                                        <button 
-                                            key={optNo} 
-                                            className={`option-btn ${isSelected ? 'selected' : ''}`} 
-                                            onClick={() => handleAnswerChange(currentQ.qNo, optNo)}
-                                        >
-                                            <span className="opt-number">{optNo}</span>
-                                            <span className="opt-text">{opt}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            <OptionGroup 
+                                q={currentQ} 
+                                currentAnswer={answers[currentQ.qNo]} 
+                                onAnswerChange={handleAnswerChange} 
+                                isOcp={examInfo?.categoryName?.toUpperCase().includes('OCP')} 
+                            />
                         ) : (
                             <div className="short-answer-wrapper">
                                 <div className="short-input-header"><PenTool size={14} /><span>답안 작성</span></div>
@@ -334,13 +331,20 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                         {/* 🔥 해설 보기 클릭 시 표출되는 정답 및 해석 박스 */}
                         {isExplanationOpen && (
                             <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 800, color: '#16a34a', marginBottom: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 800, color: '#16a34a', marginBottom: '12px' }}>
                                     <CheckCircle2 size={16} />
                                     <span>정답: {currentQ.options && currentQ.options.length > 0 && !isNaN(currentQ.answer) ? `${currentQ.answer}번` : currentQ.answer}</span>
                                 </div>
-                                <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                                    <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>💡 문제 해설:</strong>
-                                    {currentQ.explanationText ? currentQ.explanationText : '등록된 해설이 없습니다.'}
+                                
+                                <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
+                                    <strong style={{ color: '#0f172a', display: 'block', marginBottom: '8px', fontSize: '14px' }}>💡 문제 해설:</strong>
+                                    
+                                    {/* 🔥 단순 텍스트 출력을 HtmlContent 컴포넌트로 교체하여 이미지/줄바꿈 완벽 렌더링! */}
+                                    {currentQ.explanationText && currentQ.explanationText.trim() !== '' ? (
+                                        <HtmlContent content={currentQ.explanationText} type="explanation" />
+                                    ) : (
+                                        <div style={{ color: '#94a3b8' }}>등록된 해설이 없습니다.</div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -421,33 +425,24 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                     <h4><CheckCircle2 size={18} /> 답안지</h4>
                     <button className="icon-btn-sm" onClick={() => setIsOmrOpen(false)}><X size={20} /></button>
                 </div>
-                <div className="omr-drawer-content">
+               <div className="omr-drawer-content">
                     <div className="omr-grid-list">
-                        {questions.map((q, idx) => {
-                            const isMultipleChoice = q.options && q.options.length > 0;
-                            const answerVal = answers[q.qNo];
-                            const hasAnswer = answerVal !== undefined && String(answerVal).trim() !== '';
-
-                            return (
-                                <div key={q.qNo} className="omr-row" onClick={() => jumpToQuestion(idx)} style={{ background: currentIndex === idx ? '#eff6ff' : 'transparent', borderRadius: '8px' }}>
-                                    <span className="omr-q-num" style={{ fontWeight: currentIndex === idx ? 800 : 600, color: currentIndex === idx ? '#2563eb' : '#334155' }}>{idx + 1}번</span>
-                                    {isMultipleChoice ? (
-                                        <div className="omr-bubbles">
-                                            {[1, 2, 3, 4].map((num) => (
-                                                <button key={num} className={`omr-bubble ${answerVal === num ? 'checked' : ''}`} onClick={(e) => { e.stopPropagation(); handleAnswerChange(q.qNo, num); }}>
-                                                    {num}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="omr-short-status">
-                                            {hasAnswer ? <div className="omr-short-answer-display">{answerVal}</div> : <span className="omr-badge empty">미작성</span>}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+                    {questions.map((q, idx) => {
+                        const isOcp = examInfo?.categoryName?.toUpperCase().includes('OCP');
+                        
+                        return (
+                            // 🔥 수십 줄의 코드가 이 한 줄로 완벽하게 대체됩니다!
+                            <OmrRow 
+                                key={q.qNo}
+                                q={q} 
+                                answerVal={answers[q.qNo]} 
+                                isOcp={isOcp}
+                                onAnswerChange={handleAnswerChange} 
+                                onClick={() => jumpToQuestion(idx)} // (ExamOmr의 경우 scrollToQuestion(q.qNo) 적용)
+                            />
+                        );
+                    })}
+                </div>
                 </div>
 
                 <div className="omr-drawer-footer" style={{ display: 'flex', gap: '8px' }}>

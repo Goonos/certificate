@@ -54,6 +54,7 @@ export default function CertExam() {
         setModalStep(2); 
     };
 
+    // 3단계: 풀기 방식 클릭
     const handleSolveModeSelect = async (modeCode, modeName) => {
         setSelected(prev => ({ ...prev, solveMode: modeCode, solveModeName: modeName }));
 
@@ -63,7 +64,8 @@ export default function CertExam() {
             const data = await res.json();
             setOmrSessions(data);
         } else {
-            const res = await fetch(`/api/exam/setup-info/${selected.categoryId}`);
+            // 🔥 핵심: URL 뒤에 ?typeCode=${selected.typeCode} 를 붙여서 082/083 회차 분리 조회!
+            const res = await fetch(`/api/exam/setup-info/${selected.categoryId}?typeCode=${selected.typeCode}`);
             const data = await res.json();
             
             setSingleSetup(data);
@@ -75,6 +77,8 @@ export default function CertExam() {
             if(data.subjects.length > 0) {
                 setCheckedSubjects(data.subjects.map(s => s.SUBJECT_NO)); 
             }
+
+            // 🔥 없는 5단계로 직행하던 버그 컷! 무조건 4단계(통합 설정창)로 이동
             setModalStep(4);
         }
     };
@@ -94,7 +98,10 @@ export default function CertExam() {
 
     // 🔥 single_each 선택 시 /single-question-each 페이지로 이동!
     const submitSingleMode = () => {
-        if (selected.typeCode !== '02' && checkedSubjects.length === 0) {
+        const isOcp = selected.categoryName && selected.categoryName.toUpperCase().includes('OCP');
+        const hideSubject = selected.typeCode === '02' || isOcp; 
+        
+        if (!hideSubject && checkedSubjects.length === 0) {
             return alert("최소 하나 이상의 과목을 선택해 주세요.");
         }
 
@@ -103,7 +110,7 @@ export default function CertExam() {
             categoryName: selected.categoryName,
             typeCode: selected.typeCode,
             solveMode: selected.solveMode,
-            subjectNos: selected.typeCode === '02' ? [] : checkedSubjects,
+            subjectNos: hideSubject ? [] : checkedSubjects,
             modeType: sessionMode,
             ...(sessionMode === 'DESIGNATED' 
                 ? { examSession: singleSession, sessionName: singleSession } 
@@ -115,7 +122,7 @@ export default function CertExam() {
         if (selected.solveMode === 'single_end') {
             navigate('/single-question', { state: payload });
         } else if (selected.solveMode === 'single_each') {
-            // 🔥 [추가] 문제별 해설 모드일 때는 방금 만든 페이지로!
+            // 🔥 문제별 해설 모드일 때는 방금 만든 페이지로!
             navigate('/single-question-each', { state: payload }); 
         } else {
             navigate('/exam-omr', { state: payload });
@@ -147,10 +154,17 @@ export default function CertExam() {
         if (modalStep === 2) {
             return (
                 <>
-                    <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 700 }}>풀기 방식 선택</h3>
-                    <button className="type-btn" onClick={() => handleSolveModeSelect('omr', '기출문제 풀기')}>📄 기출문제 풀기 (OMR)</button>
-                    <button className="type-btn" onClick={() => handleSolveModeSelect('single_end', '한문제씩 풀기 (종료후 해설)')}>🧩 한문제씩 풀기 (종료후 해설)</button>
-                    <button className="type-btn" onClick={() => handleSolveModeSelect('single_each', '한문제씩 풀기 (문제별 해설)')}>💡 한문제씩 풀기 (문제별 해설)</button>
+                <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 700 }}>풀기 방식 선택</h3>
+                
+                <button className="type-btn" onClick={() => handleSolveModeSelect('omr', '기출문제 풀기 (OMR)')}>
+                    📄 기출문제 풀기 (OMR)
+                </button>
+                <button className="type-btn" onClick={() => handleSolveModeSelect('single_end', '한문제씩 풀기 (종료후 해설)')}>
+                    🧩 한문제씩 (종료 후 해설)
+                 </button>
+                <button className="type-btn" onClick={() => handleSolveModeSelect('single_each', '한문제씩 풀기 (즉시 해설)')}>
+                    💡 한문제씩 (문제별 해설)
+                </button>
                 </>
             );
         }
@@ -171,11 +185,17 @@ export default function CertExam() {
             );
         }
         if (modalStep === 4) {
+            // 🔥 현재 선택된 과목이 OCP인지 판별
+            const isOcp = selected.categoryName && selected.categoryName.toUpperCase().includes('OCP');
+            // 실기(02)이거나 OCP이면 과목 선택 영역을 가립니다.
+            const hideSubject = selected.typeCode === '02' || isOcp; 
+
             return (
                 <>
                     <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: 700 }}>한문제씩 풀기 상세 설정</h3>
                     
-                    {selected.typeCode !== '02' && (
+                    {/* 🔥 과목 선택 영역 (hideSubject가 아닐 때만 노출) */}
+                    {!hideSubject && (
                         <>
                             <h4 style={{ fontSize: '15px', marginBottom: '10px' }}>1. 세부 과목 선택</h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
@@ -194,12 +214,13 @@ export default function CertExam() {
                         </>
                     )}
 
-                    <h4 style={{ fontSize: '15px', marginBottom: '10px' }}>{selected.typeCode === '02' ? '1.' : '2.'} 회차 범위 선택</h4>
+                    {/* 🔥 회차 범위 선택 영역 (OCP일 때는 숫자가 1번으로 바뀜) */}
+                    <h4 style={{ fontSize: '15px', marginBottom: '10px' }}>{hideSubject ? '1.' : '2.'} 회차 범위 선택</h4>
                     <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                        <label>
+                        <label style={{ cursor: 'pointer' }}>
                             <input type="radio" checked={sessionMode === 'DESIGNATED'} onChange={() => setSessionMode('DESIGNATED')} /> 지정 회차
                         </label>
-                        <label>
+                        <label style={{ cursor: 'pointer' }}>
                             <input type="radio" checked={sessionMode === 'RANGE'} onChange={() => setSessionMode('RANGE')} /> 범위 랜덤
                         </label>
                     </div>
@@ -220,11 +241,15 @@ export default function CertExam() {
                         </div>
                     )}
 
-                    <button className="primary-btn" onClick={submitSingleMode} style={{ width: '100%', padding: '14px', background: '#2563eb', color: 'white', borderRadius: '8px', fontWeight: 600 }}>풀기 시작</button>
+                    <button className="primary-btn" onClick={submitSingleMode} style={{ width: '100%', padding: '14px', background: '#2563eb', color: 'white', borderRadius: '8px', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+                        풀기 시작
+                    </button>
                 </>
             );
         }
-        return null;
+        
+        // 🚨 [핵심 수정 부분] renderModalContent 함수를 닫기 위한 괄호와 기본 리턴값!
+        return null; 
     };
 
     return (
@@ -265,12 +290,12 @@ export default function CertExam() {
                     <div className="action-sheet active" style={{ display: 'block', maxHeight: '85vh', overflowY: 'auto' }}>
                         {renderModalContent()}
                         {modalStep !== 4 && (
-                            <button onClick={() => setModalStep(0)} style={{ width: '100%', padding: '14px', background: 'transparent', border: 'none', color: '#dc2626', fontWeight: 600, marginTop: '8px' }}>
+                            <button onClick={() => setModalStep(0)} style={{ width: '100%', padding: '14px', background: 'transparent', border: 'none', color: '#dc2626', fontWeight: 600, marginTop: '8px', cursor: 'pointer' }}>
                                 취소
                             </button>
                         )}
                         {modalStep === 4 && (
-                            <button onClick={() => setModalStep(0)} style={{ width: '100%', padding: '14px', background: 'transparent', border: 'none', color: '#64748b', fontWeight: 600, marginTop: '8px' }}>
+                            <button onClick={() => setModalStep(0)} style={{ width: '100%', padding: '14px', background: 'transparent', border: 'none', color: '#64748b', fontWeight: 600, marginTop: '8px', cursor: 'pointer' }}>
                                 닫기
                             </button>
                         )}

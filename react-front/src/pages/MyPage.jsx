@@ -36,14 +36,14 @@ export default function MyPage() {
             });
     };
 
-    // 🔥 풀기 방식(solveMode)에 따라 분기하여 이동하는 이어풀기 함수
+    // 📌 [수정] 풀기 방식(solveMode)에 따라 3가지 길로 정확히 안내!
     const handleResumeExam = (exam) => {
-        let targetRoute = '/exam-omr'; // 기본값 OMR
-        
-        if (exam.solveMode === 'single_each') {
-            targetRoute = '/single-question-each'; // 💡 새로 만든 문제별 해설 뷰어
-        } else if (exam.solveMode === 'single_end' || exam.solveMode === 'SINGLE') {
-            targetRoute = '/single-question'; // 🧩 기존 종료 후 해설 뷰어
+        let targetRoute = '/exam-omr'; // 기본값 (OMR)
+
+        if (exam.solveMode === 'single_end' || exam.solveMode === 'SINGLE') {
+            targetRoute = '/single-question'; // 종료 후 해설 모드
+        } else if (exam.solveMode === 'single_each') {
+            targetRoute = '/single-question-each'; // 문제별 해설 모드 (App.js의 라우트명과 일치해야 함)
         }
 
         navigate(targetRoute, {
@@ -142,7 +142,8 @@ export default function MyPage() {
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {inProgressExams.map(exam => {
-                            const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';                            return (
+                            const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';                            
+                            return (
                                 <div key={exam.attemptId} onClick={() => handleResumeExam(exam)} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
@@ -190,7 +191,8 @@ export default function MyPage() {
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         {completedExams.map(exam => {
-                                const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';                            return (
+                                const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';                            
+                                return (
                                 <div key={exam.attemptId} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #f1f5f9' }}>
                                         <div>

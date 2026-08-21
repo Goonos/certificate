@@ -68,17 +68,25 @@ router.get('/sessions', async (req, res) => {
 // 🔥 [복원] 모달창 데이터 세팅 API (과목, 회차)
 router.get('/setup-info/:categoryId', async (req, res) => {
     const { categoryId } = req.params;
+    const { typeCode } = req.query; // 👈 프론트에서 넘겨주는 typeCode(82 또는 83) 받기
+
     try {
         const subjectSql = `SELECT SUBJECT_NO, SUBJECT_NAME FROM EXAM_SUBJECT WHERE CATEGORY_ID = :1 ORDER BY SUBJECT_NO ASC`;
         const subjectsResult = await executeQuery(subjectSql, [categoryId]);
 
-        const sessionSql = `SELECT DISTINCT EXAM_SESSION FROM EXAM_QUESTION WHERE CATEGORY_ID = :1 ORDER BY EXAM_SESSION DESC`;
-        const sessionsResult = await executeQuery(sessionSql, [categoryId]);
+        // 🔥 typeCode가 있으면 082(82)와 083(83) 회차를 정확히 분리해서 조회
+        let sessionSql = `SELECT DISTINCT EXAM_SESSION FROM EXAM_QUESTION WHERE CATEGORY_ID = :1`;
+        const sessionBinds = [categoryId];
 
-        res.json({
-            subjects: subjectsResult.rows,
-            sessions: sessionsResult.rows.map(r => r.EXAM_SESSION)
-        });
+        if (typeCode) {
+            sessionSql += ` AND QUESTION_TYPE = :2`;
+            sessionBinds.push(typeCode);
+        }
+        sessionSql += ` ORDER BY EXAM_SESSION DESC`;
+
+        const sessionsResult = await executeQuery(sessionSql, sessionBinds);
+
+        res.json({ subjects: subjectsResult.rows, sessions: sessionsResult.rows.map(r => r.EXAM_SESSION) });
     } catch (err) {
         console.error("설정 정보 조회 에러:", err);
         res.status(500).json({ error: "과목 및 회차 정보를 불러오지 못했습니다." });
@@ -102,10 +110,15 @@ router.get('/questions', async (req, res) => {
                    Q.QUESTION_TYPE, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT,
                    O.OPTION_NO, TO_CHAR(O.OPTION_TEXT) AS OPTION_TEXT
             FROM EXAM_QUESTION Q
-            LEFT JOIN EXAM_SUBJECT S ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+            /* 🔥 JOIN에 타입 조건 추가 (2배 뻥튀기 방지) */
+            LEFT JOIN EXAM_SUBJECT S 
+                   ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
+                  AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+                  AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE 
             LEFT JOIN QUESTION_OPTIONS O ON Q.QUESTION_ID = O.QUESTION_ID
             WHERE TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(:1) AND Q.QUESTION_TYPE = :2 AND Q.EXAM_SESSION = :3
-            ORDER BY NVL(Q.SUBJECT_NO, 1) ASC, Q.QUESTION_NO ASC, O.OPTION_NO ASC
+            /* 🔥 ORDER BY에 QUESTION_ID 추가 (339개 무한 증식 방지) */
+            ORDER BY NVL(Q.SUBJECT_NO, 1) ASC, Q.QUESTION_NO ASC, Q.QUESTION_ID ASC, O.OPTION_NO ASC
         `;
         
         const result = await executeQuery(sql, [categoryId, typeCode, session]);
@@ -135,23 +148,26 @@ router.post('/questions/single-mode', async (req, res) => {
     const { categoryId, typeCode, subjectNos, modeType, examSession, startSession, endSession, limit = 20 } = req.body;
 
     try {
-        // 1. 기본 쿼리 (🔥 S.QUESTION_COUNT 메타데이터 추가, 조인 조건 강화)
+        // 1. 기본 쿼리 (🔥 잃어버렸던 TO_CHAR 완벽 복구!)
         let sql = `
             SELECT Q.QUESTION_ID, Q.CATEGORY_ID, S.SUBJECT_NAME, Q.SUBJECT_NO, 
-            Q.EXAM_SESSION, Q.QUESTION_NO, 
-            TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT,   
-            TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, 
-            Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT,
-            NVL(S.QUESTION_COUNT, 20) AS QUESTION_COUNT /* 🔥 과목별 문제 수 동적 할당 (없으면 20) */
+                   Q.EXAM_SESSION, Q.QUESTION_NO, 
+                   TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT, 
+                   TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, 
+                   Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
             FROM EXAM_QUESTION Q
+            /* 🔥 여기도 타입 조건 추가하여 120개 뻥튀기 방지 */
             LEFT JOIN EXAM_SUBJECT S 
-              ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
-             AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
-             AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE /* 시험 유형 조건 추가 */
+                   ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
+                  AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+                  AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE
             WHERE TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(:categoryId) AND Q.QUESTION_TYPE = :typeCode
-            `;
+        `;
         
         let bindParams = { categoryId, typeCode };
+
+        // 🔥 현재 요청이 OCP 과목인지 확인
+        const isOcp = typeCode === '82' || typeCode === '83';
 
         // 2. 모드에 따른 쿼리 분기
         if (modeType === 'RANDOM_20') {
@@ -167,12 +183,13 @@ router.post('/questions/single-mode', async (req, res) => {
             bindParams.limitCount = parseInt(limit, 10);
             
         } else {
-            // 지정 회차 & 범위 회차는 과목 필수 검사 수행
-            if (typeCode !== '02' && (!subjectNos || subjectNos.length === 0)) {
+            // 🔥 핵심: 실기(02)이거나 OCP(82, 83)가 '아닐 때'만 과목 필수 검사 수행!
+            if (!isOcp && typeCode !== '02' && (!subjectNos || subjectNos.length === 0)) {
                 return res.status(400).json({ error: "최소 하나 이상의 과목을 선택해 주세요." });
             }
 
-            if (typeCode !== '02' && subjectNos && subjectNos.length > 0) {
+            // 🔥 OCP가 아니고 실기가 아닐 때만 과목 조건(WHERE IN) 추가
+            if (!isOcp && typeCode !== '02' && subjectNos && subjectNos.length > 0) {
                 const subjectBinds = {};
                 const subjectPlaceholders = subjectNos.map((no, idx) => {
                     const key = `s${idx}`;
@@ -186,30 +203,25 @@ router.post('/questions/single-mode', async (req, res) => {
             if (modeType === 'DESIGNATED') {
                 sql += ` AND Q.EXAM_SESSION = :examSession ORDER BY Q.SUBJECT_NO ASC, Q.QUESTION_NO ASC`;
                 bindParams.examSession = examSession;
-
             } else if (modeType === 'RANGE') {
-                // 🔥 [핵심 1] 유저가 회차를 역순으로 골라도 오라클이 알아서 정렬하도록 LEAST, GREATEST 함수 적용!
-                sql += ` AND Q.EXAM_SESSION BETWEEN LEAST(:startSession, :endSession) AND GREATEST(:startSession, :endSession)`;
+                sql += ` AND Q.EXAM_SESSION BETWEEN :startSession AND :endSession`;
                 bindParams.startSession = startSession;
                 bindParams.endSession = endSession;
 
-                // 🔥 [핵심 2] 메타 테이블의 QUESTION_COUNT 개수만큼만 정확히 잘라서 뽑아오는 로직 적용!
                 sql = `
                     SELECT * FROM (
-                        SELECT T.*,
-                               ROW_NUMBER() OVER(PARTITION BY T.SUBJECT_NO ORDER BY DBMS_RANDOM.VALUE) AS RND_RN
-                        FROM ( ${sql} ) T
-                    )
-                    WHERE RND_RN <= QUESTION_COUNT
-                    ORDER BY SUBJECT_NO, RND_RN
+                        ${sql}
+                        ORDER BY DBMS_RANDOM.VALUE
+                    ) WHERE ROWNUM <= :limitCount
                 `;
+                bindParams.limitCount = parseInt(limit, 10);
             }
         }
 
         const result = await executeQuery(sql, bindParams);
         let questions = result.rows;
 
-        // 3. 객관식 옵션 병합 (기존 동일)
+        // 3. 객관식 옵션 병합
         if (questions.length > 0) {
             const qIds = questions.map(q => q.QUESTION_ID);
             const optBinds = {};
@@ -242,7 +254,6 @@ router.post('/questions/single-mode', async (req, res) => {
             });
         }
 
-        // 프론트엔드가 딱 원하는 포맷 { total, questions } 로 반환!
         res.json({ total: questions.length, questions: questions });
 
     } catch (err) {
