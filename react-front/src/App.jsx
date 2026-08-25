@@ -244,7 +244,6 @@ return (
 <div style={{ fontSize: '12px', color: '#94a3b8', padding: '8px 4px' }}>진행 중인 기출문제가 없습니다.</div>
 ) : (
 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-// App.jsx 내의 myExamData.inProgressExams.map 부분
 {myExamData.inProgressExams.map(exam => {
     // 👇 single_each 조건 추가! 👇
     const isSingle = exam.solveMode === 'single_end' || exam.solveMode === 'single_each' || exam.solveMode === 'SINGLE';

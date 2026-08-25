@@ -94,6 +94,58 @@ router.get('/kakao/callback', async (req, res) => {
         res.redirect('/?error=login_failed');
     }
 });
+
+// 🛠️ [개발/로컬 테스트용] 마스터 계정 하이패스 로그인
+router.get('/dev-login', async (req, res) => {
+    // 🔒 운영 환경(production)에서는 절대 작동하지 않도록 방어막 설정
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(403).send("운영 환경에서는 사용할 수 없는 기능입니다.");
+    }
+
+    try {
+        const masterKakaoId = 'master_admin_999';
+        const nickname = '로컬마스터';
+
+        // 1. DB에 마스터 계정 생성 또는 조회
+        const mergeSql = `
+            MERGE INTO USERS U
+            USING (SELECT :1 AS KAKAO_ID, :2 AS NICKNAME FROM DUAL) S
+            ON (U.KAKAO_ID = S.KAKAO_ID)
+            WHEN MATCHED THEN
+                UPDATE SET U.NICKNAME = S.NICKNAME
+            WHEN NOT MATCHED THEN
+                INSERT (USER_ID, KAKAO_ID, NICKNAME, ROLE)
+                VALUES (NVL((SELECT MAX(USER_ID) FROM USERS), 0) + 1, S.KAKAO_ID, S.NICKNAME, 'ADMIN')
+        `;
+        await executeQuery(mergeSql, [masterKakaoId, nickname]);
+
+        const selectSql = `SELECT USER_ID, ROLE FROM USERS WHERE KAKAO_ID = :1`;
+        const result = await executeQuery(selectSql, [masterKakaoId]);
+        const dbUser = result.rows[0];
+
+        // 2. 카카오 없이 우리 서버가 직접 JWT 토큰 강제 발급
+        const jwtSecret = process.env.JWT_SECRET || 'secret_cbt_key_1234';
+        const token = jwt.sign(
+            { userId: dbUser.USER_ID, kakaoId: masterKakaoId, nickname, role: dbUser.ROLE },
+            jwtSecret,
+            { expiresIn: '12h' }
+        );
+
+        // 3. 브라우저 쿠키에 강제로 굽기
+        res.cookie('cbt_token', token, {
+            httpOnly: true,
+            maxAge: 12 * 60 * 60 * 1000,
+            path: '/'
+        });
+
+        // 4. 로그인 성공 처리 후 프론트엔드 마이페이지로 귀환
+        res.redirect('/mypage');
+
+    } catch (err) {
+        console.error("🚨 개발용 로그인 에러:", err);
+        res.status(500).send("마스터 계정 로그인 실패");
+    }
+});
  
 // 3. 내 정보 확인 (JWT 파싱)
 router.get('/me', (req, res) => {
