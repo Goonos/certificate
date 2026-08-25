@@ -1,13 +1,35 @@
 // src/pages/MyPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SolveModeBadge from '../components/SolveModeBadge'; // 🔥 뱃지 컴포넌트 추가!
+import SolveModeBadge from '../components/SolveModeBadge'; 
 import { User, Clock, CheckCircle2, XCircle, ChevronRight, Award, LogOut, MessageCircle, Trash2 } from 'lucide-react';
+
 export default function MyPage() {
     const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // 이어풀기 기록 삭제 기능 구현
+    const handleDeleteExam = (attemptId, type, e) => {
+        e.stopPropagation(); // 삭제 버튼 클릭 시 이어풀기로 넘어가는 것 방지
+        
+        if (!window.confirm("이 기록을 정말 삭제하시겠습니까?\n삭제된 기록은 복구할 수 없습니다.")) return;
+
+        fetch(`/api/mypage/attempt/${attemptId}`, { method: 'DELETE', credentials: 'include' })
+            .then(res => res.json())
+            .then(resData => {
+                if (resData.success) {
+                    setData(prev => ({
+                        ...prev,
+                        [type]: prev[type].filter(exam => exam.attemptId !== attemptId)
+                    }));
+                } else {
+                    alert("삭제에 실패했습니다.");
+                }
+            })
+            .catch(err => alert("서버 오류로 삭제하지 못했습니다."));
+    };
 
     useEffect(() => {
         fetch('/api/mypage', { credentials: 'include' })
@@ -36,7 +58,6 @@ export default function MyPage() {
             });
     };
 
-    // 📌 [수정] 풀기 방식(solveMode)에 따라 3가지 길로 정확히 안내!
     const handleResumeExam = (exam) => {
         let targetRoute = '/exam-omr'; // 기본값 (OMR)
 
@@ -105,6 +126,7 @@ export default function MyPage() {
             padding: '20px', paddingBottom: '40px', WebkitOverflowScrolling: 'touch' 
         }}>
             
+            {/* 유저 프로필 헤더 */}
             <div style={{
                 background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', borderRadius: '16px', padding: '20px',
                 color: '#ffffff', marginBottom: '24px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
@@ -112,7 +134,7 @@ export default function MyPage() {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                     <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <User size={26} color="#ffffff" />
+                        <User size={26} color="#ffffff" strokeWidth={2} />
                     </div>
                     <div>
                         <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>{user.nickname} 님</h3>
@@ -126,6 +148,7 @@ export default function MyPage() {
                 </button>
             </div>
 
+            {/* 📌 진행 중인 시험 영역 */}
             <section style={{ marginBottom: '32px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                     <Clock size={18} color="#2563eb" />
@@ -142,33 +165,44 @@ export default function MyPage() {
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {inProgressExams.map(exam => (
-                            <div key={exam.attemptId} onClick={() => handleResumeExam(exam)} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                                <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '1px 6px', borderRadius: '6px' }}>
-                                            {exam.sessionName}
-                                        </span>
-                                        {/* 🔥 해결: 여기 하드코딩 부분을 뱃지 컴포넌트로 완벽 대체! */}
-                                        <SolveModeBadge solveMode={exam.solveMode} />
+                            <div key={exam.attemptId} onClick={() => handleResumeExam(exam)} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                
+                                {/* 상단: 뱃지들 + 우측 삭제 버튼 */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#2563eb', background: '#eff6ff', padding: '2px 6px', borderRadius: '6px' }}>{exam.sessionName}</span>
+                                            <SolveModeBadge solveMode={exam.solveMode} />
+                                        </div>
                                         <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>{exam.categoryName}</h4>
                                     </div>
-                                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                                        진행률: <strong style={{ color: '#2563eb' }}>{exam.solvedCount}</strong> / {exam.totalCount} 문제
-                                    </p>
+                                    <button 
+                                        onClick={(e) => handleDeleteExam(exam.attemptId, 'inProgressExams', e)} 
+                                        style={{ background: '#fee2e2', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '8px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', color: '#2563eb', fontSize: '13px', fontWeight: 700 }}>
-                                    <span>이어풀기</span><ChevronRight size={18} />
+                                
+                                {/* 하단: 진행률 + 이어풀기 화살표 */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
+                                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>진행률: <strong style={{ color: '#2563eb' }}>{exam.solvedCount}</strong> / {exam.totalCount} 문제</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', color: '#2563eb', fontSize: '13px', fontWeight: 700 }}>
+                                        <span>이어풀기</span><ChevronRight size={18} />
+                                    </div>
                                 </div>
+
                             </div>
                         ))}
                     </div>
                 )}
             </section>
 
+            {/* 📌 완료된 시험 영역 */}
             <section>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                     <Award size={18} color="#10b981" />
-                    <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#1e293b' }}>풀했던 기출문제</h3>
+                    <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#1e293b' }}>풀었던 기출문제</h3>
                     <span style={{ background: '#dcfce7', color: '#15803d', fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '12px' }}>
                         {completedExams.length}
                     </span>
@@ -182,16 +216,15 @@ export default function MyPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         {completedExams.map(exam => (
                             <div key={exam.attemptId} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #f1f5f9' }}>
+                                
+                                {/* 상단: 뱃지들 + 합격여부 */}
+                                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
                                     <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: '6px' }}>
-                                                {exam.sessionName}
-                                            </span>
-                                            {/* 🔥 해결: 완료된 시험 카드에도 뱃지 컴포넌트 추가! */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: '6px' }}>{exam.sessionName}</span>
                                             <SolveModeBadge solveMode={exam.solveMode} />
                                         </div>
-                                        <h4 style={{ margin: '4px 0 0 0', fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{exam.categoryName}</h4>
+                                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>{exam.categoryName}</h4>
                                     </div>
                                     {exam.isPassed ? (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#dcfce7', color: '#15803d', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}><CheckCircle2 size={14} /> 합격 ({exam.score}점)</div>
@@ -200,6 +233,7 @@ export default function MyPage() {
                                     )}
                                 </div>
 
+                                {/* 중간: 과목별 성적 */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>과목별 성적</span>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -213,7 +247,18 @@ export default function MyPage() {
                                         )}
                                     </div>
                                 </div>
-                                <div style={{ marginTop: '10px', textAlign: 'right', fontSize: '11px', color: '#94a3b8' }}>응시일자: {exam.completeDt}</div>
+                                
+                                {/* 하단: 날짜 & 삭제 버튼 */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>응시일자: {exam.completeDt}</div>
+                                    <button 
+                                        onClick={(e) => handleDeleteExam(exam.attemptId, 'completedExams', e)} 
+                                        style={{ background: '#fee2e2', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', borderRadius: '8px' }}
+                                    >
+                                        <Trash2 size={14} /> 기록 삭제
+                                    </button>
+                                </div>
+
                             </div>
                         ))}
                     </div>
