@@ -143,5 +143,24 @@ router.get('/', authenticateUser, async (req, res) => {
         res.status(500).json({ error: "마이페이지 정보를 불러오는 중 에러가 발생했습니다." });
     }
 });
+// src/routes/mypage.js (맨 하단에 추가)
 
+// 🔥 [추가] 기출문제 진행/완료 기록 삭제 API
+router.delete('/attempt/:attemptId', authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const attemptId = req.params.attemptId;
+
+        // 1. 하위 로그(USER_SOLVE_LOG) 먼저 삭제 (외래키 제약조건 방지)
+        await executeQuery(`DELETE FROM USER_SOLVE_LOG WHERE ATTEMPT_ID = :1 AND USER_ID = :2`, [attemptId, userId]);
+        
+        // 2. 부모 기록(USER_EXAM_ATTEMPT) 삭제
+        await executeQuery(`DELETE FROM USER_EXAM_ATTEMPT WHERE ATTEMPT_ID = :1 AND USER_ID = :2`, [attemptId, userId]);
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error("기록 삭제 에러:", err);
+        res.status(500).json({ error: "기록을 삭제하는 중 오류가 발생했습니다." });
+    }
+});
 module.exports = router;

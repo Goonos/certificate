@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SolveModeBadge from '../components/SolveModeBadge'; // 🔥 뱃지 컴포넌트 추가!
-import { User, Clock, CheckCircle2, XCircle, ChevronRight, Award, LogOut, MessageCircle } from 'lucide-react';
-
+import { User, Clock, CheckCircle2, XCircle, ChevronRight, Award, LogOut, MessageCircle, Trash2 } from 'lucide-react';
 export default function MyPage() {
     const navigate = useNavigate();
     const [data, setData] = useState(null);

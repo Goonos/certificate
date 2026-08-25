@@ -56,7 +56,7 @@ router.get('/sessions', async (req, res) => {
             SELECT DISTINCT EXAM_SESSION 
             FROM EXAM_QUESTION 
             WHERE CATEGORY_ID = :1 AND QUESTION_TYPE = :2
-            ORDER BY EXAM_SESSION DESC
+            ORDER BY EXAM_SESSION ASC
         `;
         const result = await executeQuery(sql, [categoryId, typeCode]);
         res.json(result.rows.map(row => ({ id: row.EXAM_SESSION, name: row.EXAM_SESSION })));
@@ -82,7 +82,7 @@ router.get('/setup-info/:categoryId', async (req, res) => {
             sessionSql += ` AND QUESTION_TYPE = :2`;
             sessionBinds.push(typeCode);
         }
-        sessionSql += ` ORDER BY EXAM_SESSION DESC`;
+        sessionSql += ` ORDER BY EXAM_SESSION ASC`;
 
         const sessionsResult = await executeQuery(sessionSql, sessionBinds);
 
