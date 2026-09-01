@@ -48,42 +48,50 @@ export default function SingleQuestion() {
 
     // 4. 문제 불러오기
     useEffect(() => {
-        if (currentAttemptId) {
-            // 🔥 이어풀기 모드
+        // 🔥 1) 오답노트 모드
+        if (examInfo.modeType === 'REVIEW_INCORRECT' && currentAttemptId) {
+            fetch(`/api/exam/questions/incorrect/${currentAttemptId}`, { credentials: 'include' })
+            .then(res => {
+                if (!res.ok) throw new Error("오답 문제를 불러오지 못했습니다.");
+                return res.json();
+            })
+            .then(data => {
+                if (data.questions && data.questions.length > 0) setQuestions(data.questions);
+                else throw new Error("틀린 문제가 없습니다! 완벽합니다 💯");
+                setIsLoading(false);
+            })
+            .catch(err => { setErrorMsg(err.message); setIsLoading(false); });
+            
+        } 
+        // 🧩 2) 기존 이어풀기 모드
+        else if (currentAttemptId) {
             fetch(`/api/exam/questions/resume/${currentAttemptId}`, { credentials: 'include' })
             .then(res => {
                 if (!res.ok) throw new Error("이어풀기 문제를 불러오지 못했습니다.");
                 return res.json();
             })
             .then(data => {
-                if (data.questions && data.questions.length > 0) {
-                    setQuestions(data.questions);
-                } else {
-                    throw new Error("저장된 문제 데이터가 없습니다.");
-                }
+                if (data.questions && data.questions.length > 0) setQuestions(data.questions);
+                else throw new Error("저장된 문제 데이터가 없습니다.");
                 setIsLoading(false);
             })
-            .catch(err => {
-                setErrorMsg(err.message);
-                setIsLoading(false);
-            });
-        } else {
-            // 🔥 새 시험 모드: 모달창에서 선택한 범위 정보를 백엔드에 완벽하게 넘겨줌!
+            .catch(err => { setErrorMsg(err.message); setIsLoading(false); });
+        } 
+        // 🧩 3) 기존 새 시험 모드
+        else {
             fetch('/api/exam/questions/single-mode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     attemptId: currentAttemptId, 
-                    // 모달에서 세팅된 값들을 개별 파라미터로 뽑아서 백엔드로 전송
                     categoryId: examInfo.categoryId,
                     typeCode: examInfo.typeCode,
                     subjectNos: examInfo.subjectNos || [],
-                    modeType: examInfo.modeType || 'DESIGNATED', // RANGE, RANDOM_20 등
+                    modeType: examInfo.modeType || 'DESIGNATED',
                     examSession: examInfo.sessionName,
-                    startSession: examInfo.startSession,         // 범위 시작 회차
-                    endSession: examInfo.endSession,             // 범위 끝 회차
-                    limit: 20, // 필요한 경우 문제 수 제한
-                    
+                    startSession: examInfo.startSession,
+                    endSession: examInfo.endSession,
+                    limit: 20,
                     examInfo: { ...examInfo, solveMode: 'single_end' }, 
                     questions: questions.map(q => ({ questionId: q.questionId, qNo: q.qNo, answer: q.answer })),
                     answers 
@@ -94,31 +102,30 @@ export default function SingleQuestion() {
                 return res.json();
             })
             .then(data => {
-                if (data.questions && data.questions.length > 0) {
-                    setQuestions(data.questions);
-                } else {
-                    throw new Error("해당 조건에 일치하는 기출문제가 없습니다.");
-                }
+                if (data.questions && data.questions.length > 0) setQuestions(data.questions);
+                else throw new Error("해당 조건에 일치하는 기출문제가 없습니다.");
                 setIsLoading(false);
             })
-            .catch(err => {
-                setErrorMsg(err.message);
-                setIsLoading(false);
-            });
+            .catch(err => { setErrorMsg(err.message); setIsLoading(false); });
         }
     }, [examInfo, currentAttemptId]);
 
     // 5. 이어풀기 시 이전 답안 복원
     useEffect(() => {
         if (currentAttemptId && questions.length > 0) {
-            fetch(`/api/exam/progress/${currentAttemptId}`, { credentials: 'include' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.answers) setAnswers(data.answers);
-                })
-                .catch(err => console.error("기존 답안 로드 실패:", err));
+            // 🔥 오답노트이거나 다시풀기라면 기존 답안 무시!
+            if (examInfo.isRetry || examInfo.modeType === 'REVIEW_INCORRECT') {
+                setAnswers({}); 
+            } else {
+                fetch(`/api/exam/progress/${currentAttemptId}`, { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.answers) setAnswers(data.answers);
+                    })
+                    .catch(err => console.error("기존 답안 로드 실패:", err));
+            }
         }
-    }, [currentAttemptId, questions]);
+    }, [currentAttemptId, questions, examInfo]);
 
     // 6. 타이머
     useEffect(() => {

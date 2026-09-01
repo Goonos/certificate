@@ -41,32 +41,54 @@ export default function ExamOmr() {
     });
 
     useEffect(() => {
-        fetch(`/api/exam/questions?categoryId=${examInfo.categoryId}&typeCode=${examInfo.typeCode}&session=${examInfo.sessionName}`)
-            .then(res => {
-                if (!res.ok) throw new Error("서버에서 문제를 불러오지 못했습니다.");
-                return res.json();
-            })
-            .then(data => {
-                if (Array.isArray(data) && data.length > 0) setQuestions(data);
-                else throw new Error("해당 회차에 등록된 문제 데이터가 없습니다."); 
-                setIsLoading(false);
-            })
-            .catch(err => {
-                setErrorMsg(err.message);
-                setIsLoading(false);
-            });
-    }, [examInfo]);
+        if (examInfo.modeType === 'REVIEW_INCORRECT' && currentAttemptId) {
+            // 💡 마이페이지에서 '오답 노트'를 눌렀을 때 작동하는 로직
+            fetch(`/api/exam/questions/incorrect/${currentAttemptId}`, { credentials: 'include' })
+                .then(res => {
+                    if (!res.ok) throw new Error("오답 문제를 불러오지 못했습니다.");
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.questions && data.questions.length > 0) setQuestions(data.questions);
+                    else throw new Error("틀린 문제가 없습니다! 완벽합니다 💯");
+                    setIsLoading(false);
+                })
+                .catch(err => { setErrorMsg(err.message); setIsLoading(false); });
+        } else {
+            // 🧩 기존 새 시험 시작 로직 유지
+            fetch(`/api/exam/questions?categoryId=${examInfo.categoryId}&typeCode=${examInfo.typeCode}&session=${examInfo.sessionName}`)
+                .then(res => {
+                    if (!res.ok) throw new Error("서버에서 문제를 불러오지 못했습니다.");
+                    return res.json();
+                })
+                .then(data => {
+                    if (Array.isArray(data) && data.length > 0) setQuestions(data);
+                    else throw new Error("해당 회차에 등록된 문제 데이터가 없습니다."); 
+                    setIsLoading(false);
+                })
+                .catch(err => {
+                    setErrorMsg(err.message);
+                    setIsLoading(false);
+                });
+        }
+    }, [examInfo, currentAttemptId]);
 
+    // 🔥 [수정] 2. 기존 답안 로드 (다시 풀기 & 오답 노트 시 기존 답안 강제 백지화)
     useEffect(() => {
         if (currentAttemptId && questions.length > 0) {
-            fetch(`/api/exam/progress/${currentAttemptId}`, { credentials: 'include' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.answers) setAnswers(data.answers);
-                })
-                .catch(err => console.error("기존 답안 로드 실패:", err));
+            if (examInfo.isRetry || examInfo.modeType === 'REVIEW_INCORRECT') {
+                setAnswers({}); // 💡 이전 마킹 기록 싹 지우고 새 출발!
+            } else {
+                // 🧩 기존 이어풀기 시 마킹 기록 복원 유지
+                fetch(`/api/exam/progress/${currentAttemptId}`, { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.answers) setAnswers(data.answers);
+                    })
+                    .catch(err => console.error("기존 답안 로드 실패:", err));
+            }
         }
-    }, [currentAttemptId, questions]);
+    }, [currentAttemptId, questions, examInfo]);
 
     useEffect(() => {
         if (isLoading || errorMsg || customAlert.isOpen) return;

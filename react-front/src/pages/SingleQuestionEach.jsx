@@ -50,9 +50,30 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
     });
 
     // 문제 데이터 로드 (이어풀기 vs 신규 생성)
+    // 4. 문제 불러오기
     useEffect(() => {
-        if (currentAttemptId) {
-            // 🔥 이어풀기 모드
+        // 🔥 1. 오답 노트 모드: 신호를 받으면 틀린 문제 전용 API를 호출합니다.
+        if (examInfo.modeType === 'REVIEW_INCORRECT' && currentAttemptId) {
+            fetch(`/api/exam/questions/incorrect/${currentAttemptId}`, { credentials: 'include' })
+            .then(res => {
+                if (!res.ok) throw new Error("오답 문제를 불러오지 못했습니다.");
+                return res.json();
+            })
+            .then(data => {
+                if (data.questions && data.questions.length > 0) {
+                    setQuestions(data.questions);
+                } else {
+                    throw new Error("틀린 문제가 없습니다! 완벽합니다 💯");
+                }
+                setIsLoading(false);
+            })
+            .catch(err => {
+                setErrorMsg(err.message);
+                setIsLoading(false);
+            });
+        } 
+        // 🧩 2. 이어풀기 모드 (기존 유지)
+        else if (currentAttemptId) {
             fetch(`/api/exam/questions/resume/${currentAttemptId}`, { credentials: 'include' })
             .then(res => {
                 if (!res.ok) throw new Error("이어풀기 문제를 불러오지 못했습니다.");
@@ -70,24 +91,25 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                 setErrorMsg(err.message);
                 setIsLoading(false);
             });
-        } else {
-            // 🔥 새 시험 모드: 모달창에서 선택한 범위 정보를 백엔드에 완벽하게 넘겨줌!
+        } 
+        // 🧩 3. 새 시험 모드 (기존 유지)
+        else {
             fetch('/api/exam/questions/single-mode', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     attemptId: currentAttemptId, 
-                    // 모달에서 세팅된 값들을 개별 파라미터로 뽑아서 백엔드로 전송
                     categoryId: examInfo.categoryId,
                     typeCode: examInfo.typeCode,
                     subjectNos: examInfo.subjectNos || [],
-                    modeType: examInfo.modeType || 'DESIGNATED', // RANGE, RANDOM_20 등
+                    modeType: examInfo.modeType || 'DESIGNATED',
                     examSession: examInfo.sessionName,
-                    startSession: examInfo.startSession,         // 범위 시작 회차
-                    endSession: examInfo.endSession,             // 범위 끝 회차
-                    limit: 20, // 필요한 경우 문제 수 제한
+                    startSession: examInfo.startSession,
+                    endSession: examInfo.endSession,
+                    // 🔥 핵심 수정: 무식하게 적혀있던 limit: 20을 지우고, 범위 랜덤일 때만 20개로 제한합니다!
+                    ...(examInfo.modeType === 'RANGE' ? { limit: 20 } : {}),
                     
-                    examInfo: { ...examInfo, solveMode: 'single_end' }, 
+                    examInfo: { ...examInfo, solveMode: 'single_each' }, 
                     questions: questions.map(q => ({ questionId: q.questionId, qNo: q.qNo, answer: q.answer })),
                     answers 
                 })
@@ -97,31 +119,30 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                 return res.json();
             })
             .then(data => {
-                if (data.questions && data.questions.length > 0) {
-                    setQuestions(data.questions);
-                } else {
-                    throw new Error("해당 조건에 일치하는 기출문제가 없습니다.");
-                }
+                if (data.questions && data.questions.length > 0) setQuestions(data.questions);
+                else throw new Error("해당 조건에 일치하는 기출문제가 없습니다.");
                 setIsLoading(false);
             })
-            .catch(err => {
-                setErrorMsg(err.message);
-                setIsLoading(false);
-            });
+            .catch(err => { setErrorMsg(err.message); setIsLoading(false); });
         }
     }, [examInfo, currentAttemptId]);
 
-    // 이어풀기 시 답안 복원
+    // 5. 이어풀기 시 이전 답안 복원
     useEffect(() => {
         if (currentAttemptId && questions.length > 0) {
-            fetch(`/api/exam/progress/${currentAttemptId}`, { credentials: 'include' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.answers) setAnswers(data.answers);
-                })
-                .catch(err => console.error("기존 답안 로드 실패:", err));
+            // 🔥 오답 노트거나 다시 풀기라면 기존에 마킹했던 답안을 싹 비워줍니다!
+            if (examInfo.isRetry || examInfo.modeType === 'REVIEW_INCORRECT') {
+                setAnswers({});
+            } else {
+                fetch(`/api/exam/progress/${currentAttemptId}`, { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.answers) setAnswers(data.answers);
+                    })
+                    .catch(err => console.error("기존 답안 로드 실패:", err));
+            }
         }
-    }, [currentAttemptId, questions]);
+    }, [currentAttemptId, questions, examInfo]);
 
     // 타이머
     useEffect(() => {
@@ -339,8 +360,8 @@ import { Clock, CheckCircle2, Send, X, PenTool, AlertCircle, HelpCircle, Save, C
                                 <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
                                     <strong style={{ color: '#0f172a', display: 'block', marginBottom: '8px', fontSize: '14px' }}>💡 문제 해설:</strong>
                                     
-                                    {/* 🔥 HTML 태그(이미지, 줄바꿈)를 문자가 아닌 실제 UI로 렌더링! */}
-                                    <HtmlContent content={currentQ.passageText} type="passage" />
+                                    {/* 🚨 핵심 수정: passageText(지문)가 아닌 explanationText(해설)를 전달해야 합니다! */}
+                                    <HtmlContent content={currentQ.explanationText} type="explanation" />
                                 </div>
                             </div>
                         )}

@@ -7,7 +7,7 @@ export default function SolveModeBadge({ solveMode }) {
     const isEnd = solveMode === 'single_end' || solveMode === 'SINGLE';
     const isSingle = isEach || isEnd;
 
-    let badgeText = 'OMR';
+    let badgeText = '기출문제';
     if (isEach) badgeText = '한문제(해설)';
     else if (isEnd) badgeText = '한문제(종료)';
 

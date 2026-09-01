@@ -3,6 +3,7 @@ const express = require('express');
 const { executeQuery } = require('../config/oracle_db');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const KST = "SYSDATE + 9/24";
 
 // 로그인 인증 미들웨어
 const authenticateUser = (req, res, next) => {
@@ -143,30 +144,30 @@ router.get('/questions', async (req, res) => {
     }
 });
 
-// 🔥 한문제씩 풀기 전용 동적 문제 조회 API (랜덤 20문제 로직 추가)
+// 🔥 한문제씩 풀기 전용 동적 문제 조회 API (OCP 과목패스 + 메타데이터 연동 완벽 지원)
 router.post('/questions/single-mode', async (req, res) => {
     const { categoryId, typeCode, subjectNos, modeType, examSession, startSession, endSession, limit = 20 } = req.body;
 
     try {
-        // 1. 기본 쿼리 (🔥 잃어버렸던 TO_CHAR 완벽 복구!)
+        // 1. 기본 쿼리 (🔥 S.QUESTION_COUNT 및 조인 조건 추가)
         let sql = `
             SELECT Q.QUESTION_ID, Q.CATEGORY_ID, S.SUBJECT_NAME, Q.SUBJECT_NO, 
-                   Q.EXAM_SESSION, Q.QUESTION_NO, 
-                   TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT, 
-                   TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, 
-                   Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
+            Q.EXAM_SESSION, Q.QUESTION_NO, 
+            TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT, 
+            TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, 
+            Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT,
+            NVL(S.QUESTION_COUNT, 20) AS QUESTION_COUNT /* 과목별 문제 수가 없으면 기본 20개 할당 */
             FROM EXAM_QUESTION Q
-            /* 🔥 여기도 타입 조건 추가하여 120개 뻥튀기 방지 */
             LEFT JOIN EXAM_SUBJECT S 
                    ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
                   AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
-                  AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE
+                  AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE /* 🔥 뻥튀기 방지 필수 조인 */
             WHERE TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(:categoryId) AND Q.QUESTION_TYPE = :typeCode
         `;
         
         let bindParams = { categoryId, typeCode };
 
-        // 🔥 현재 요청이 OCP 과목인지 확인
+        // 🔥 OCP 판별 변수 부활! (82, 83은 과목이 없으므로 과목 체크를 패스하기 위함)
         const isOcp = typeCode === '82' || typeCode === '83';
 
         // 2. 모드에 따른 쿼리 분기
@@ -183,7 +184,7 @@ router.post('/questions/single-mode', async (req, res) => {
             bindParams.limitCount = parseInt(limit, 10);
             
         } else {
-            // 🔥 핵심: 실기(02)이거나 OCP(82, 83)가 '아닐 때'만 과목 필수 검사 수행!
+            // 🔥 OCP가 아니고 실기가 아닐 때만 과목 필수 검사 수행!
             if (!isOcp && typeCode !== '02' && (!subjectNos || subjectNos.length === 0)) {
                 return res.status(400).json({ error: "최소 하나 이상의 과목을 선택해 주세요." });
             }
@@ -203,18 +204,29 @@ router.post('/questions/single-mode', async (req, res) => {
             if (modeType === 'DESIGNATED') {
                 sql += ` AND Q.EXAM_SESSION = :examSession ORDER BY Q.SUBJECT_NO ASC, Q.QUESTION_NO ASC`;
                 bindParams.examSession = examSession;
-            } else if (modeType === 'RANGE') {
-                sql += ` AND Q.EXAM_SESSION BETWEEN :startSession AND :endSession`;
-                bindParams.startSession = startSession;
-                bindParams.endSession = endSession;
 
+            } else if (modeType === 'RANGE') {
+                // BETWEEN 꼬임 방지: 역순 선택 시 스왑
+                let actualStart = startSession;
+                let actualEnd = endSession;
+                if (String(startSession) > String(endSession)) {
+                    actualStart = endSession;
+                    actualEnd = startSession;
+                }
+
+                sql += ` AND Q.EXAM_SESSION BETWEEN :startSession AND :endSession`;
+                bindParams.startSession = actualStart;
+                bindParams.endSession = actualEnd;
+
+                // 메타 테이블의 QUESTION_COUNT 개수만큼만 정확히 자르기
                 sql = `
                     SELECT * FROM (
-                        ${sql}
-                        ORDER BY DBMS_RANDOM.VALUE
-                    ) WHERE ROWNUM <= :limitCount
+                        SELECT T.*,
+                               ROW_NUMBER() OVER(PARTITION BY T.SUBJECT_NO ORDER BY DBMS_RANDOM.VALUE) AS RND_RN
+                        FROM ( ${sql} ) T
+                    ) WHERE RND_RN <= QUESTION_COUNT
+                    ORDER BY SUBJECT_NO, RND_RN
                 `;
-                bindParams.limitCount = parseInt(limit, 10);
             }
         }
 
@@ -298,31 +310,25 @@ router.post('/save-progress', authenticateUser, async (req, res) => {
         const userId = req.user.userId;
         let { attemptId, examInfo, questions, answers } = req.body;
         const solveMode = examInfo.solveMode || 'omr';
+        const sessionName = examInfo.sessionName || '지정/랜덤 모의고사';
 
+        // 1. 부모 레코드 (USER_EXAM_ATTEMPT) 처리
         if (!attemptId) {
             const seqRes = await executeQuery(`SELECT SEQ_USER_EXAM_ATTEMPT.NEXTVAL AS ID FROM DUAL`);
             attemptId = seqRes.rows[0].ID;
             const insertAttemptSql = `
                 BEGIN
                     INSERT INTO USER_EXAM_ATTEMPT (ATTEMPT_ID, USER_ID, CATEGORY_ID, EXAM_SESSION, TYPE_CODE, SOLVE_MODE, STATUS, TOTAL_COUNT, START_DT)
-                    VALUES (:1, :2, :3, :4, :5, :6, 'IN_PROGRESS', :7, SYSDATE);
+                    VALUES (:1, :2, :3, :4, :5, :6, 'IN_PROGRESS', :7, ${KST});
                     COMMIT;
                 END;
             `;
-                await executeQuery(insertAttemptSql, [
-                    attemptId, 
-                    userId, 
-                    examInfo.categoryId, 
-                    examInfo.sessionName || '지정/랜덤 모의고사', // 🔥 핵심: 비어있으면 기본값 텍스트 삽입!
-                    examInfo.typeCode || '01', 
-                    solveMode, 
-                    questions.length
-                ]);        
-            } else {
+            await executeQuery(insertAttemptSql, [attemptId, userId, examInfo.categoryId, sessionName, examInfo.typeCode || '01', solveMode, questions.length]);
+        } else {
             const updateAttemptSql = `
                 BEGIN
                     UPDATE USER_EXAM_ATTEMPT 
-                    SET STATUS = 'IN_PROGRESS', SOLVE_MODE = NVL(:1, SOLVE_MODE), START_DT = NVL(START_DT, SYSDATE) 
+                    SET STATUS = 'IN_PROGRESS', SOLVE_MODE = NVL(:1, SOLVE_MODE), START_DT = NVL(START_DT, ${KST}) 
                     WHERE ATTEMPT_ID = :2 AND USER_ID = :3;
                     COMMIT;
                 END;
@@ -330,8 +336,8 @@ router.post('/save-progress', authenticateUser, async (req, res) => {
             await executeQuery(updateAttemptSql, [solveMode, attemptId, userId]);
         }
 
+        // 2. 답안 기록 최신화
         for (const q of questions) {
-            // 🔥 [핵심 수정] 소문자(OMR), 대문자(한문제씩) 모두 호환되도록 완벽 커버!
             const questionId = q.questionId || q.QUESTION_ID || q.qNo; 
             const selectedAns = answers[q.qNo] ? String(answers[q.qNo]) : null;
             const isCorrect = selectedAns ? (String(q.answer) === selectedAns ? 'Y' : 'N') : null;
@@ -342,10 +348,10 @@ router.post('/save-progress', authenticateUser, async (req, res) => {
                     USING (SELECT :1 AS ATTEMPT_ID, :2 AS QUESTION_ID FROM DUAL) T
                     ON (L.ATTEMPT_ID = T.ATTEMPT_ID AND L.QUESTION_ID = T.QUESTION_ID)
                     WHEN MATCHED THEN
-                        UPDATE SET L.SELECTED_ANSWER = :3, L.IS_CORRECT = :4, L.SOLVE_DT = SYSDATE
+                        UPDATE SET L.SELECTED_ANSWER = :3, L.IS_CORRECT = :4, L.SOLVE_DT = ${KST}
                     WHEN NOT MATCHED THEN
                         INSERT (SOLVE_LOG_ID, ATTEMPT_ID, USER_ID, QUESTION_ID, SELECTED_ANSWER, IS_CORRECT, SOLVE_DT)
-                        VALUES (SEQ_USER_SOLVE_LOG.NEXTVAL, :1, :5, :2, :3, :4, SYSDATE);
+                        VALUES (SEQ_USER_SOLVE_LOG.NEXTVAL, :1, :5, :2, :3, :4, ${KST});
                     COMMIT;
                 END;
             `;
@@ -424,80 +430,120 @@ router.post('/submit', authenticateUser, async (req, res) => {
     try {
         const userId = req.user.userId;
         const { attemptId: existingAttemptId, examInfo, questions, answers } = req.body;
+        const solveMode = examInfo.solveMode || 'omr';
+        const sessionName = examInfo.sessionName || '지정/랜덤 모의고사';
         
-        let correctCount = 0;
-        const solveLogs = [];
-
-        questions.forEach(q => {
-            const selectedAns = answers[q.qNo] ? String(answers[q.qNo]) : null;
-            const isCorrect = String(selectedAns) === String(q.answer) ? 'Y' : 'N';
-            if (isCorrect === 'Y') correctCount++;
-            
-            // 🔥 여기도 동일하게 문제 번호 매핑 보완
-            solveLogs.push({ questionId: q.questionId || q.QUESTION_ID || q.qNo, selectedAnswer: selectedAns, isCorrect: isCorrect });
-        });
-
-        const totalCount = questions.length;
-        const score = Math.round((correctCount / totalCount) * 100);
         let attemptId = existingAttemptId;
 
-        if (attemptId) {
-            const updateAttemptSql = `
-                BEGIN
-                    UPDATE USER_EXAM_ATTEMPT 
-                    SET STATUS='COMPLETED', SCORE=:1, CORRECT_COUNT=:2, COMPLETE_DT=SYSDATE 
-                    WHERE ATTEMPT_ID=:3 AND USER_ID=:4;
-                    COMMIT;
-                END;
-            `;
-            await executeQuery(updateAttemptSql, [score, correctCount, attemptId, userId]);
-        } else {
+        // 1. 부모 레코드 (USER_EXAM_ATTEMPT) 무조건 먼저 준비 (FK 제약조건 에러 방지)
+        if (!attemptId) {
             const seqRes = await executeQuery(`SELECT SEQ_USER_EXAM_ATTEMPT.NEXTVAL AS ID FROM DUAL`);
             attemptId = seqRes.rows[0].ID;
-            const solveMode = examInfo.solveMode || 'omr';
+
             const insertAttemptSql = `
                 BEGIN
-                    INSERT INTO USER_EXAM_ATTEMPT (ATTEMPT_ID, USER_ID, CATEGORY_ID, EXAM_SESSION, TYPE_CODE, SOLVE_MODE, STATUS, SCORE, TOTAL_COUNT, CORRECT_COUNT, START_DT, COMPLETE_DT) 
-                    VALUES (:1, :2, :3, :4, :5, :6, 'COMPLETED', :7, :8, :9, SYSDATE, SYSDATE);
+                    INSERT INTO USER_EXAM_ATTEMPT (ATTEMPT_ID, USER_ID, CATEGORY_ID, EXAM_SESSION, TYPE_CODE, SOLVE_MODE, STATUS, TOTAL_COUNT, START_DT) 
+                    VALUES (:1, :2, :3, :4, :5, :6, 'IN_PROGRESS', :7, ${KST});
                     COMMIT;
                 END;
             `;
-            await executeQuery(insertAttemptSql, [
-                attemptId, 
-                userId, 
-                examInfo.categoryId, 
-                examInfo.sessionName || '지정/랜덤 모의고사', // 🔥 여기도 동일하게 추가!
-                examInfo.typeCode || '01', 
-                solveMode, 
-                score, 
-                totalCount, 
-                correctCount
-            ]);        
+            await executeQuery(insertAttemptSql, [attemptId, userId, examInfo.categoryId, sessionName, examInfo.typeCode || '01', solveMode, questions.length]);
         }
 
-        for (const log of solveLogs) {
+        // 2. 자식 테이블 (USER_SOLVE_LOG) 먼저 최신화
+        for (const q of questions) {
+            const questionId = q.questionId || q.QUESTION_ID || q.qNo; 
+            const selectedAns = answers[q.qNo] ? String(answers[q.qNo]) : null;
+            const isCorrect = String(selectedAns) === String(q.answer) ? 'Y' : 'N';
+
             const mergeLogSql = `
                 BEGIN
                     MERGE INTO USER_SOLVE_LOG L
                     USING (SELECT :1 AS ATTEMPT_ID, :2 AS QUESTION_ID FROM DUAL) T
                     ON (L.ATTEMPT_ID = T.ATTEMPT_ID AND L.QUESTION_ID = T.QUESTION_ID)
                     WHEN MATCHED THEN 
-                        UPDATE SET L.SELECTED_ANSWER = :3, L.IS_CORRECT = :4, L.SOLVE_DT = SYSDATE
+                        UPDATE SET L.SELECTED_ANSWER = :3, L.IS_CORRECT = :4, L.SOLVE_DT = ${KST}
                     WHEN NOT MATCHED THEN 
                         INSERT (SOLVE_LOG_ID, ATTEMPT_ID, USER_ID, QUESTION_ID, SELECTED_ANSWER, IS_CORRECT, SOLVE_DT) 
-                        VALUES (SEQ_USER_SOLVE_LOG.NEXTVAL, :1, :5, :2, :3, :4, SYSDATE);
+                        VALUES (SEQ_USER_SOLVE_LOG.NEXTVAL, :1, :5, :2, :3, :4, ${KST});
                     COMMIT;
                 END;
             `;
-            await executeQuery(mergeLogSql, [attemptId, log.questionId, log.selectedAnswer, log.isCorrect, userId]);
+            await executeQuery(mergeLogSql, [attemptId, questionId, selectedAns, isCorrect, userId]);
         }
 
-        res.json({ success: true, attemptId, score });
+        // 3. DB에 쌓인 SOLVE_LOG 기준으로 전체 정답 수 집계 (오답노트로 풀었어도 전체 대비 점수 산출)
+        const cntSql = `SELECT COUNT(*) AS CORRECT_CNT FROM USER_SOLVE_LOG WHERE ATTEMPT_ID = :1 AND IS_CORRECT = 'Y'`;
+        const cntRes = await executeQuery(cntSql, [attemptId]);
+        const finalCorrect = cntRes.rows[0].CORRECT_CNT;
+
+        const totalSql = `SELECT TOTAL_COUNT FROM USER_EXAM_ATTEMPT WHERE ATTEMPT_ID = :1`;
+        const totalRes = await executeQuery(totalSql, [attemptId]);
+        const finalTotal = totalRes.rows[0].TOTAL_COUNT;
+
+        const finalScore = finalTotal > 0 ? Math.round((finalCorrect / finalTotal) * 100) : 0;
+
+        // 4. 부모 테이블 최종 상태 및 계산된 점수 반영
+        const updateAttemptSql = `
+            BEGIN
+                UPDATE USER_EXAM_ATTEMPT 
+                SET STATUS='COMPLETED', SCORE=:1, CORRECT_COUNT=:2, COMPLETE_DT=${KST}, SOLVE_MODE=NVL(:3, SOLVE_MODE)
+                WHERE ATTEMPT_ID=:4 AND USER_ID=:5;
+                COMMIT;
+            END;
+        `;
+        await executeQuery(updateAttemptSql, [finalScore, finalCorrect, solveMode, attemptId, userId]);
+
+        res.json({ success: true, attemptId, score: finalScore });
     } catch (err) {
         console.error("시험 제출 적재 실패:", err);
         res.status(500).json({ error: "시험 결과 저장 중 에러가 발생했습니다." });
     }
 });
+
+// 🔥 [추가] 오답 노트 전용 문제 조회 API
+router.get('/questions/incorrect/:attemptId', authenticateUser, async (req, res) => {
+    try {
+        const attemptId = req.params.attemptId;
+        const userId = req.user.userId;
+
+        const sql = `
+            SELECT Q.QUESTION_ID, Q.CATEGORY_ID, TO_CHAR(S.SUBJECT_NAME) AS SUBJECT_NAME, Q.SUBJECT_NO, 
+                   Q.EXAM_SESSION, Q.QUESTION_NO, TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT, TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, 
+                   Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
+            FROM USER_SOLVE_LOG L
+            JOIN EXAM_QUESTION Q ON L.QUESTION_ID = Q.QUESTION_ID
+            LEFT JOIN EXAM_SUBJECT S ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+            WHERE L.ATTEMPT_ID = :1 AND L.USER_ID = :2 AND L.IS_CORRECT = 'N'
+            ORDER BY NVL(Q.SUBJECT_NO, 1) ASC, Q.QUESTION_NO ASC
+        `;
+        
+        const result = await executeQuery(sql, [attemptId, userId]);
+        let questions = result.rows;
+
+        if (questions.length > 0) {
+            const qIds = questions.map(q => q.QUESTION_ID);
+            const optBinds = {};
+            const optPlaceholders = qIds.map((id, idx) => { optBinds[`q${idx}`] = id; return `:q${idx}`; }).join(', ');
+
+            const optSql = `SELECT QUESTION_ID, OPTION_NO, TO_CHAR(OPTION_TEXT) AS OPTION_TEXT FROM QUESTION_OPTIONS WHERE QUESTION_ID IN (${optPlaceholders}) ORDER BY QUESTION_ID, OPTION_NO ASC`;
+            const optResult = await executeQuery(optSql, optBinds);
+
+            questions = questions.map((q) => ({
+                ...q,
+                questionId: q.QUESTION_ID, qNo: q.QUESTION_NO, title: q.QUESTION_TEXT, passageText: q.PASSAGE_TEXT,
+                questionType: q.QUESTION_TYPE, answer: q.ANSWER_TEXT, explanationText: q.EXPLANATION_TEXT,
+                options: optResult.rows.filter(opt => opt.QUESTION_ID === q.QUESTION_ID).map(opt => ({ optionNo: opt.OPTION_NO, optionText: opt.OPTION_TEXT }))
+            }));
+        }
+        res.json({ questions });
+    } catch (err) {
+        console.error("오답 조회 에러:", err);
+        res.status(500).json({ error: "오답 문제를 불러오는 중 에러가 발생했습니다." });
+    }
+});
+
+
 // GET /api/exam/questions/range
 router.get('/questions/range', async (req, res) => {
     const { categoryId, typeCode, startSession, endSession } = req.query;

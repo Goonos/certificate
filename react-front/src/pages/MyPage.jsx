@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SolveModeBadge from '../components/SolveModeBadge'; 
-import { User, Clock, CheckCircle2, XCircle, ChevronRight, Award, LogOut, MessageCircle, Trash2 } from 'lucide-react';
+import { User, Clock, CheckCircle2, XCircle, ChevronRight, Award, LogOut, MessageCircle, Trash2, RotateCcw, BookOpen } from 'lucide-react';
 
 export default function MyPage() {
     const navigate = useNavigate();
@@ -12,7 +12,7 @@ export default function MyPage() {
 
     // 이어풀기 기록 삭제 기능 구현
     const handleDeleteExam = (attemptId, type, e) => {
-        e.stopPropagation(); // 삭제 버튼 클릭 시 이어풀기로 넘어가는 것 방지
+        e.stopPropagation(); 
         
         if (!window.confirm("이 기록을 정말 삭제하시겠습니까?\n삭제된 기록은 복구할 수 없습니다.")) return;
 
@@ -58,7 +58,8 @@ export default function MyPage() {
             });
     };
 
-    const handleResumeExam = (exam) => {
+    // 📌 풀기 방식(solveMode)에 따라 3가지 길로 정확히 안내
+    const handleResumeExam = (exam, extraState = {}) => {
         let targetRoute = '/exam-omr'; // 기본값 (OMR)
 
         if (exam.solveMode === 'single_end' || exam.solveMode === 'SINGLE') {
@@ -74,9 +75,23 @@ export default function MyPage() {
                 typeCode: exam.typeCode,
                 sessionName: exam.sessionName,
                 attemptId: exam.attemptId,
-                solveMode: exam.solveMode
+                solveMode: exam.solveMode,
+                ...extraState
             }
         });
+    };
+
+    // 🔥 다시 풀기 버튼 이벤트
+    const handleRetry = (exam, e) => {
+        e.stopPropagation();
+        if (!window.confirm("문제를 처음부터 다시 푸시겠습니까?\n새로운 점수로 현재 기록이 덮어씌워집니다.")) return;
+        handleResumeExam(exam, { isRetry: true }); 
+    };
+
+    // 🔥 오답 노트 버튼 이벤트
+    const handleIncorrectNote = (exam, e) => {
+        e.stopPropagation();
+        handleResumeExam(exam, { modeType: 'REVIEW_INCORRECT' });
     };
 
     if (isLoading) {
@@ -178,7 +193,6 @@ export default function MyPage() {
                         {inProgressExams.map(exam => (
                             <div key={exam.attemptId} onClick={() => handleResumeExam(exam)} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                                 
-                                {/* 상단: 뱃지들 + 우측 삭제 버튼 */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
@@ -195,7 +209,6 @@ export default function MyPage() {
                                     </button>
                                 </div>
                                 
-                                {/* 하단: 진행률 + 이어풀기 화살표 */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
                                     <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>진행률: <strong style={{ color: '#2563eb' }}>{exam.solvedCount}</strong> / {exam.totalCount} 문제</p>
                                     <div style={{ display: 'flex', alignItems: 'center', color: '#2563eb', fontSize: '13px', fontWeight: 700 }}>
@@ -244,30 +257,50 @@ export default function MyPage() {
                                     )}
                                 </div>
 
-                                {/* 중간: 과목별 성적 */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>과목별 성적</span>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                        {exam.subjects && exam.subjects.map(sub => (
-                                            <div key={sub.subjectNo} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', fontWeight: '700', background: sub.score < 40 ? '#fef2f2' : '#f8fafc', color: sub.score < 40 ? '#ef4444' : '#334155', border: sub.score < 40 ? '1px solid #fca5a5' : '1px solid #e2e8f0' }}>
-                                                {sub.subjectNo}과목: <strong>{sub.score}점</strong> {sub.score < 40 && '(과락)'}
+                                {/* 🔥 레이아웃 정렬 수정: alignItems를 제거하여 상단에 밀착시키고, 좌측 컨테이너에 space-between 추가 */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    
+                                    {/* 좌측 영역: 과목별 성적 (위) + 응시일자 (아래) */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, paddingRight: '12px' }}>
+                                        {/* 성적이 구분선 바로 아래에 위치하게 됩니다 */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8' }}>과목별 성적</span>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                {exam.subjects && exam.subjects.map(sub => (
+                                                    <div key={sub.subjectNo} style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', fontWeight: '700', background: sub.score < 40 ? '#fef2f2' : '#f8fafc', color: sub.score < 40 ? '#ef4444' : '#334155', border: sub.score < 40 ? '1px solid #fca5a5' : '1px solid #e2e8f0' }}>
+                                                        {sub.subjectNo}과목: <strong>{sub.score}점</strong> {sub.score < 40 && '(과락)'}
+                                                    </div>
+                                                ))}
+                                                {(!exam.subjects || exam.subjects.length === 0) && (
+                                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>단일 과목 (세부 성적 없음)</div>
+                                                )}
                                             </div>
-                                        ))}
-                                        {(!exam.subjects || exam.subjects.length === 0) && (
-                                            <div style={{ fontSize: '11px', color: '#94a3b8' }}>단일 과목 (세부 성적 없음)</div>
-                                        )}
+                                        </div>
+                                        {/* 남는 여백(공백)이 이 위쪽으로 발생하며, 응시일자는 버튼 라인에 맞춰집니다 */}
+                                        <div style={{ fontSize: '11px', color: '#94a3b8', paddingTop: '10px' }}>응시일자: {exam.completeDt}</div>
                                     </div>
-                                </div>
-                                
-                                {/* 하단: 날짜 & 삭제 버튼 */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
-                                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>응시일자: {exam.completeDt}</div>
-                                    <button 
-                                        onClick={(e) => handleDeleteExam(exam.attemptId, 'completedExams', e)} 
-                                        style={{ background: '#fee2e2', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', borderRadius: '8px' }}
-                                    >
-                                        <Trash2 size={14} /> 기록 삭제
-                                    </button>
+
+                                    {/* 우측 영역: 버튼 3개 스택 (높이의 기준이 됨) */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                                        <button 
+                                            onClick={(e) => handleRetry(exam, e)} 
+                                            style={{ background: '#eff6ff', color: '#2563eb', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', borderRadius: '8px' }}
+                                        >
+                                            <RotateCcw size={14} /> 다시 풀기
+                                        </button>
+                                        <button 
+                                            onClick={(e) => handleIncorrectNote(exam, e)} 
+                                            style={{ background: '#fffbeb', color: '#d97706', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', borderRadius: '8px' }}
+                                        >
+                                            <BookOpen size={14} /> 오답 노트
+                                        </button>
+                                        <button 
+                                            onClick={(e) => handleDeleteExam(exam.attemptId, 'completedExams', e)} 
+                                            style={{ background: '#fee2e2', color: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '12px', fontWeight: 'bold', padding: '6px 12px', borderRadius: '8px' }}
+                                        >
+                                            <Trash2 size={14} /> 기록 삭제
+                                        </button>
+                                    </div>
                                 </div>
 
                             </div>

@@ -71,8 +71,8 @@ export default function CertExam() {
             setSingleSetup(data);
             if(data.sessions.length > 0) {
                 setSingleSession(data.sessions[0]);
-                setStartSession(data.sessions[data.sessions.length - 1]);
-                setEndSession(data.sessions[0]);
+                setStartSession(data.sessions[0]);
+                setEndSession(data.sessions[data.sessions.length - 1]);
             }
             if(data.subjects.length > 0) {
                 setCheckedSubjects(data.subjects.map(s => s.SUBJECT_NO)); 
