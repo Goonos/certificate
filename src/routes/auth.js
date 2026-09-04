@@ -97,7 +97,7 @@ router.get('/kakao/callback', async (req, res) => {
 
 // 🛠️ [개발/로컬 테스트용] 마스터 계정 하이패스 로그인
 router.get('/dev-login', async (req, res) => {
-    // 🔒 운영 환경(production)에서는 절대 작동하지 않도록 방어막 설정
+    // 운영 환경(production)에서는 무조건 403 차단
     if (process.env.NODE_ENV === 'production') {
         return res.status(403).send("운영 환경에서는 사용할 수 없는 기능입니다.");
     }

@@ -126,19 +126,23 @@ export default function MyPage() {
                         }}
                     >
                         <MessageCircle size={18} fill="#000000" />
-                        카카오톡 로그인
-                    </button>
-                    <button 
-                        onClick={() => window.location.href = '/api/auth/dev-login'}
-                        style={{ 
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                            width: '100%', padding: '14px', background: '#f1f5f9', color: '#475569', 
-                            border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '800', cursor: 'pointer',
-                            marginTop: '12px'
-                        }}
-                    >
-                        개발자 로그인
-                    </button>
+                            카카오톡 로그인
+                        </button>
+
+                        {/* 🔥 로컬 개발 환경(DEV)일 때만 마스터 로그인 버튼 렌더링 */}
+                        {import.meta.env.DEV && (
+                            <button 
+                                onClick={() => window.location.href = '/api/auth/dev-login'}
+                                style={{ 
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                    width: '100%', padding: '14px', background: '#f1f5f9', color: '#475569', 
+                                    border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '800', cursor: 'pointer',
+                                    marginTop: '12px'
+                                }}
+                            >
+                                개발자 로그인
+                            </button>
+                        )}
                 </div>
             </div>
         );
