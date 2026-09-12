@@ -149,25 +149,20 @@ router.post('/questions/single-mode', async (req, res) => {
     const { categoryId, typeCode, subjectNos, modeType, examSession, startSession, endSession, limit = 20 } = req.body;
 
     try {
-        // 1. 기본 쿼리 (🔥 S.QUESTION_COUNT 및 조인 조건 추가)
+        // 1. 기본 쿼리 (🔥 리눅스마스터 48/32 처리를 위해 S.QUESTION_COUNT 필수 추가!)
         let sql = `
             SELECT Q.QUESTION_ID, Q.CATEGORY_ID, S.SUBJECT_NAME, Q.SUBJECT_NO, 
             Q.EXAM_SESSION, Q.QUESTION_NO, 
             TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT, 
             TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, 
             Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT,
-            NVL(S.QUESTION_COUNT, 20) AS QUESTION_COUNT /* 과목별 문제 수가 없으면 기본 20개 할당 */
+            NVL(S.QUESTION_COUNT, 20) AS QUESTION_COUNT /* 과목별 할당 문제 수 */
             FROM EXAM_QUESTION Q
-            LEFT JOIN EXAM_SUBJECT S 
-                   ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
-                  AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
-                  AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE /* 🔥 뻥튀기 방지 필수 조인 */
+            LEFT JOIN EXAM_SUBJECT S ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
             WHERE TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(:categoryId) AND Q.QUESTION_TYPE = :typeCode
-        `;
+            `;
         
         let bindParams = { categoryId, typeCode };
-
-        // 🔥 OCP 판별 변수 부활! (82, 83은 과목이 없으므로 과목 체크를 패스하기 위함)
         const isOcp = typeCode === '82' || typeCode === '83';
 
         // 2. 모드에 따른 쿼리 분기
@@ -184,12 +179,10 @@ router.post('/questions/single-mode', async (req, res) => {
             bindParams.limitCount = parseInt(limit, 10);
             
         } else {
-            // 🔥 OCP가 아니고 실기가 아닐 때만 과목 필수 검사 수행!
             if (!isOcp && typeCode !== '02' && (!subjectNos || subjectNos.length === 0)) {
                 return res.status(400).json({ error: "최소 하나 이상의 과목을 선택해 주세요." });
             }
 
-            // 🔥 OCP가 아니고 실기가 아닐 때만 과목 조건(WHERE IN) 추가
             if (!isOcp && typeCode !== '02' && subjectNos && subjectNos.length > 0) {
                 const subjectBinds = {};
                 const subjectPlaceholders = subjectNos.map((no, idx) => {
@@ -204,9 +197,8 @@ router.post('/questions/single-mode', async (req, res) => {
             if (modeType === 'DESIGNATED') {
                 sql += ` AND Q.EXAM_SESSION = :examSession ORDER BY Q.SUBJECT_NO ASC, Q.QUESTION_NO ASC`;
                 bindParams.examSession = examSession;
-
             } else if (modeType === 'RANGE') {
-                // BETWEEN 꼬임 방지: 역순 선택 시 스왑
+                // 🔥 [핵심 1] 오라클 BETWEEN 에러 방지 (시작 회차가 끝 회차보다 크면 스왑)
                 let actualStart = startSession;
                 let actualEnd = endSession;
                 if (String(startSession) > String(endSession)) {
@@ -218,7 +210,7 @@ router.post('/questions/single-mode', async (req, res) => {
                 bindParams.startSession = actualStart;
                 bindParams.endSession = actualEnd;
 
-                // 메타 테이블의 QUESTION_COUNT 개수만큼만 정확히 자르기
+                // 🔥 [핵심 2] 리눅스마스터(48/32), SQLD(10/40) 비율을 정확히 맞춰서 랜덤 추출하는 파티션 쿼리!
                 sql = `
                     SELECT * FROM (
                         SELECT T.*,
@@ -513,7 +505,10 @@ router.get('/questions/incorrect/:attemptId', authenticateUser, async (req, res)
                    Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
             FROM USER_SOLVE_LOG L
             JOIN EXAM_QUESTION Q ON L.QUESTION_ID = Q.QUESTION_ID
-            LEFT JOIN EXAM_SUBJECT S ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+            LEFT JOIN EXAM_SUBJECT S 
+                   ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
+                  AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+                  AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE /* 과목 조인 뻥튀기 방지 */
             WHERE L.ATTEMPT_ID = :1 AND L.USER_ID = :2 AND L.IS_CORRECT = 'N'
             ORDER BY NVL(Q.SUBJECT_NO, 1) ASC, Q.QUESTION_NO ASC
         `;
@@ -526,14 +521,27 @@ router.get('/questions/incorrect/:attemptId', authenticateUser, async (req, res)
             const optBinds = {};
             const optPlaceholders = qIds.map((id, idx) => { optBinds[`q${idx}`] = id; return `:q${idx}`; }).join(', ');
 
-            const optSql = `SELECT QUESTION_ID, OPTION_NO, TO_CHAR(OPTION_TEXT) AS OPTION_TEXT FROM QUESTION_OPTIONS WHERE QUESTION_ID IN (${optPlaceholders}) ORDER BY QUESTION_ID, OPTION_NO ASC`;
+            const optSql = `
+                SELECT QUESTION_ID, OPTION_NO, TO_CHAR(OPTION_TEXT) AS OPTION_TEXT 
+                FROM QUESTION_OPTIONS 
+                WHERE QUESTION_ID IN (${optPlaceholders}) 
+                ORDER BY QUESTION_ID, OPTION_NO ASC
+            `;
             const optResult = await executeQuery(optSql, optBinds);
 
             questions = questions.map((q) => ({
                 ...q,
-                questionId: q.QUESTION_ID, qNo: q.QUESTION_NO, title: q.QUESTION_TEXT, passageText: q.PASSAGE_TEXT,
-                questionType: q.QUESTION_TYPE, answer: q.ANSWER_TEXT, explanationText: q.EXPLANATION_TEXT,
-                options: optResult.rows.filter(opt => opt.QUESTION_ID === q.QUESTION_ID).map(opt => ({ optionNo: opt.OPTION_NO, optionText: opt.OPTION_TEXT }))
+                questionId: q.QUESTION_ID,
+                qNo: q.QUESTION_NO,
+                title: q.QUESTION_TEXT,
+                passageText: q.PASSAGE_TEXT,
+                questionType: q.QUESTION_TYPE,
+                answer: q.ANSWER_TEXT,
+                explanationText: q.EXPLANATION_TEXT,
+                // 🔥 객체 대신 문자열(OPTION_TEXT) 배열로 반환
+                options: optResult.rows
+                    .filter(opt => opt.QUESTION_ID === q.QUESTION_ID)
+                    .map(opt => opt.OPTION_TEXT)
             }));
         }
         res.json({ questions });
