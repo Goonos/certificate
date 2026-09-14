@@ -149,7 +149,7 @@ router.post('/questions/single-mode', async (req, res) => {
     const { categoryId, typeCode, subjectNos, modeType, examSession, startSession, endSession, limit = 20 } = req.body;
 
     try {
-        // 1. 기본 쿼리 (🔥 리눅스마스터 48/32 처리를 위해 S.QUESTION_COUNT 필수 추가!)
+        // 1. 기본 쿼리 
         let sql = `
             SELECT Q.QUESTION_ID, Q.CATEGORY_ID, S.SUBJECT_NAME, Q.SUBJECT_NO, 
             Q.EXAM_SESSION, Q.QUESTION_NO, 
@@ -158,7 +158,11 @@ router.post('/questions/single-mode', async (req, res) => {
             Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT,
             NVL(S.QUESTION_COUNT, 20) AS QUESTION_COUNT /* 과목별 할당 문제 수 */
             FROM EXAM_QUESTION Q
-            LEFT JOIN EXAM_SUBJECT S ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+            LEFT JOIN EXAM_SUBJECT S 
+                   ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
+                  AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+                  /* 🔥 해결 1: OCP 문제 2배 증식(뻥튀기) 완벽 차단 조인 조건 */
+                  AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE 
             WHERE TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(:categoryId) AND Q.QUESTION_TYPE = :typeCode
             `;
         
@@ -190,7 +194,9 @@ router.post('/questions/single-mode', async (req, res) => {
                     subjectBinds[key] = no;
                     return `:${key}`;
                 }).join(', ');
-                sql += ` AND Q.SUBJECT_NO IN (${subjectPlaceholders})`;
+                
+                // 🔥 해결 2: SQLD 문제의 과목 번호가 비어있어도(NULL) 튕겨내지 않고 1과목으로 멱살 잡고 가져오는 무적 방어 로직!
+                sql += ` AND NVL(Q.SUBJECT_NO, 1) IN (${subjectPlaceholders})`;
                 Object.assign(bindParams, subjectBinds);
             }
 
@@ -198,10 +204,10 @@ router.post('/questions/single-mode', async (req, res) => {
                 sql += ` AND Q.EXAM_SESSION = :examSession ORDER BY Q.SUBJECT_NO ASC, Q.QUESTION_NO ASC`;
                 bindParams.examSession = examSession;
             } else if (modeType === 'RANGE') {
-                // 🔥 [핵심 1] 오라클 BETWEEN 에러 방지 (시작 회차가 끝 회차보다 크면 스왑)
+                // 🔥 해결 3: "60회"와 "62회" 같은 문자열 회차 비교 시 오작동하지 않도록 localeCompare로 한국어 숫자 순서 완벽 스왑 처리
                 let actualStart = startSession;
                 let actualEnd = endSession;
-                if (String(startSession) > String(endSession)) {
+                if (String(startSession).localeCompare(String(endSession), 'ko', { numeric: true }) > 0) {
                     actualStart = endSession;
                     actualEnd = startSession;
                 }
@@ -210,7 +216,7 @@ router.post('/questions/single-mode', async (req, res) => {
                 bindParams.startSession = actualStart;
                 bindParams.endSession = actualEnd;
 
-                // 🔥 [핵심 2] 리눅스마스터(48/32), SQLD(10/40) 비율을 정확히 맞춰서 랜덤 추출하는 파티션 쿼리!
+                // 과목별 문항수 컷팅 파티션 쿼리
                 sql = `
                     SELECT * FROM (
                         SELECT T.*,
