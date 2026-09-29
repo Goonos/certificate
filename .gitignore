@@ -47,5 +47,6 @@ json_to_excel.js
 *crawler*
 *.xlsx
 images
+*.erd
 
 
