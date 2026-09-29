@@ -130,7 +130,7 @@ router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
                 OPTION_7: { type: oracledb.STRING, maxSize: 1000 },
                 OPTION_8: { type: oracledb.STRING, maxSize: 1000 },
                 ANSWER_TEXT: { type: oracledb.STRING, maxSize: 1000 },
-                EEXPLANATION_TEXT: { type: oracledb.DB_TYPE_CLOB }
+                EXPLANATION_TEXT: { type: oracledb.DB_TYPE_CLOB }
             }
         };
 
