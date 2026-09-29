@@ -371,14 +371,16 @@ router.get('/questions/resume/:attemptId', authenticateUser, async (req, res) =>
 
         const sql = `
             SELECT Q.QUESTION_ID, Q.CATEGORY_ID, S.SUBJECT_NAME, Q.SUBJECT_NO, 
-                   Q.EXAM_SESSION, Q.QUESTION_NO, Q.PASSAGE_TEXT, Q.QUESTION_TEXT, 
+                   Q.EXAM_SESSION, Q.QUESTION_NO, 
+                   TO_CHAR(Q.PASSAGE_TEXT) AS PASSAGE_TEXT,   
+                   TO_CHAR(Q.QUESTION_TEXT) AS QUESTION_TEXT, 
                    Q.QUESTION_TYPE, TO_CHAR(Q.ANSWER_TEXT) AS ANSWER_TEXT, TO_CHAR(Q.EXPLANATION_TEXT) AS EXPLANATION_TEXT
             FROM USER_SOLVE_LOG L
             JOIN EXAM_QUESTION Q ON L.QUESTION_ID = Q.QUESTION_ID
-            /* 🔥 핵심 해결: 이어풀기 쿼리에도 EXAM_TYPE_CODE 조인 조건을 추가하여 2배 뻥튀기 원천 차단! */
             LEFT JOIN EXAM_SUBJECT S 
                    ON TO_CHAR(Q.CATEGORY_ID) = TO_CHAR(S.CATEGORY_ID) 
                   AND NVL(Q.SUBJECT_NO, 1) = S.SUBJECT_NO
+                  /* 🔥 핵심 해결: 이어풀기 쿼리에도 EXAM_TYPE_CODE 조인 조건을 추가하여 2배 뻥튀기 원천 차단! */
                   AND Q.QUESTION_TYPE = S.EXAM_TYPE_CODE
             WHERE L.ATTEMPT_ID = :1 AND L.USER_ID = :2
             ORDER BY L.SOLVE_LOG_ID ASC
@@ -405,7 +407,7 @@ router.get('/questions/resume/:attemptId', authenticateUser, async (req, res) =>
             questions = questions.map(q => {
                 return {
                     ...q,
-                    questionId: q.QUESTION_ID,
+                    questionId: q.QUESTION_ID, // 🔥 프론트가 정확히 인식할 수 있도록 소문자로 확실히 매핑!
                     qNo: q.QUESTION_NO,
                     title: q.QUESTION_TEXT,
                     passageText: q.PASSAGE_TEXT,
