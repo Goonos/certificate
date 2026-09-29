@@ -133,6 +133,22 @@ router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
                 EXPLANATION_TEXT: { type: oracledb.DB_TYPE_CLOB }
             }
         };
+        rows.forEach(row => {
+            if (row.PASSAGE_TEXT === '') row.PASSAGE_TEXT = null;
+            if (row.QUESTION_TEXT === '') row.QUESTION_TEXT = null;
+            if (row.EXPLANATION_TEXT === '') row.EXPLANATION_TEXT = null;
+            
+            // 혹시 모를 방어를 위해 나머지 보기들도 모두 처리해 주면 더욱 안전합니다.
+            if (row.OPTION_1 === '') row.OPTION_1 = null;
+            if (row.OPTION_2 === '') row.OPTION_2 = null;
+            if (row.OPTION_3 === '') row.OPTION_3 = null;
+            if (row.OPTION_4 === '') row.OPTION_4 = null;
+            if (row.OPTION_5 === '') row.OPTION_5 = null;
+            if (row.OPTION_6 === '') row.OPTION_6 = null;
+            if (row.OPTION_7 === '') row.OPTION_7 = null;
+            if (row.OPTION_8 === '') row.OPTION_8 = null;
+            if (row.ANSWER_TEXT === '') row.ANSWER_TEXT = null;
+        });
 
         const result = await connection.executeMany(insertSql, rows, options);
         console.log(`🎉 DB 적재 성공! ${result.rowsAffected}개의 문항이 STG 테이블에 들어갔습니다.`);
