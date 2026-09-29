@@ -134,20 +134,31 @@ router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
             }
         };
         rows.forEach(row => {
-            if (row.PASSAGE_TEXT === '') row.PASSAGE_TEXT = null;
-            if (row.QUESTION_TEXT === '') row.QUESTION_TEXT = null;
-            if (row.EXPLANATION_TEXT === '') row.EXPLANATION_TEXT = null;
+            // 1. 숫자/문자열 타입 강제 매칭 (엑셀에서 숫자로 넘어와도 무조건 문자로!)
+            if (row.CATEGORY_NAME !== undefined && row.CATEGORY_NAME !== '') row.CATEGORY_NAME = String(row.CATEGORY_NAME);
+            if (row.EXAM_SESSION !== undefined && row.EXAM_SESSION !== '') row.EXAM_SESSION = String(row.EXAM_SESSION);
+            if (row.QUESTION_TYPE !== undefined && row.QUESTION_TYPE !== '') row.QUESTION_TYPE = String(row.QUESTION_TYPE);
             
-            // 혹시 모를 방어를 위해 나머지 보기들도 모두 처리해 주면 더욱 안전합니다.
-            if (row.OPTION_1 === '') row.OPTION_1 = null;
-            if (row.OPTION_2 === '') row.OPTION_2 = null;
-            if (row.OPTION_3 === '') row.OPTION_3 = null;
-            if (row.OPTION_4 === '') row.OPTION_4 = null;
-            if (row.OPTION_5 === '') row.OPTION_5 = null;
-            if (row.OPTION_6 === '') row.OPTION_6 = null;
-            if (row.OPTION_7 === '') row.OPTION_7 = null;
-            if (row.OPTION_8 === '') row.OPTION_8 = null;
-            if (row.ANSWER_TEXT === '') row.ANSWER_TEXT = null;
+            // Number 타입은 혹시 문자로 넘어왔을 경우를 대비해 숫자로!
+            if (row.SUBJECT_NO !== undefined && row.SUBJECT_NO !== '') row.SUBJECT_NO = Number(row.SUBJECT_NO);
+            if (row.QUESTION_NO !== undefined && row.QUESTION_NO !== '') row.QUESTION_NO = Number(row.QUESTION_NO);
+
+            // 2. CLOB 컬럼 방어 (빈 칸이면 튕기는 버그 방지)
+            // 값이 없거나 빈 문자열이면 확실한 순수 null로 덮어쓰고, 값이 있으면 무조건 String으로 캐스팅!
+            row.PASSAGE_TEXT = (row.PASSAGE_TEXT === undefined || row.PASSAGE_TEXT === '') ? null : String(row.PASSAGE_TEXT);
+            row.QUESTION_TEXT = (row.QUESTION_TEXT === undefined || row.QUESTION_TEXT === '') ? null : String(row.QUESTION_TEXT);
+            row.EXPLANATION_TEXT = (row.EXPLANATION_TEXT === undefined || row.EXPLANATION_TEXT === '') ? null : String(row.EXPLANATION_TEXT);
+            
+            // 3. 나머지 보기들도 안전하게 처리
+            row.OPTION_1 = (row.OPTION_1 === undefined || row.OPTION_1 === '') ? null : String(row.OPTION_1);
+            row.OPTION_2 = (row.OPTION_2 === undefined || row.OPTION_2 === '') ? null : String(row.OPTION_2);
+            row.OPTION_3 = (row.OPTION_3 === undefined || row.OPTION_3 === '') ? null : String(row.OPTION_3);
+            row.OPTION_4 = (row.OPTION_4 === undefined || row.OPTION_4 === '') ? null : String(row.OPTION_4);
+            row.OPTION_5 = (row.OPTION_5 === undefined || row.OPTION_5 === '') ? null : String(row.OPTION_5);
+            row.OPTION_6 = (row.OPTION_6 === undefined || row.OPTION_6 === '') ? null : String(row.OPTION_6);
+            row.OPTION_7 = (row.OPTION_7 === undefined || row.OPTION_7 === '') ? null : String(row.OPTION_7);
+            row.OPTION_8 = (row.OPTION_8 === undefined || row.OPTION_8 === '') ? null : String(row.OPTION_8);
+            row.ANSWER_TEXT = (row.ANSWER_TEXT === undefined || row.ANSWER_TEXT === '') ? null : String(row.ANSWER_TEXT);
         });
 
         const result = await connection.executeMany(insertSql, rows, options);
