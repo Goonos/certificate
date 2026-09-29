@@ -118,8 +118,8 @@ router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
                 SUBJECT_NO: { type: oracledb.NUMBER },
                 QUESTION_NO: { type: oracledb.NUMBER },
                 QUESTION_TYPE: { type: oracledb.STRING, maxSize: 10 },
-                PASSAGE_TEXT: { type: oracledb.STRING}, 
-                QUESTION_TEXT: { type: oracledb.STRING}, 
+                PASSAGE_TEXT: { type: oracledb.DB_TYPE_CLOB }, 
+                QUESTION_TEXT: { type: oracledb.DB_TYPE_CLOB },
                 OPTION_1: { type: oracledb.STRING, maxSize: 1000 },
                 OPTION_2: { type: oracledb.STRING, maxSize: 1000 },
                 OPTION_3: { type: oracledb.STRING, maxSize: 1000 },
@@ -130,7 +130,7 @@ router.post('/upload-excel', upload.single('excelFile'), async (req, res) => {
                 OPTION_7: { type: oracledb.STRING, maxSize: 1000 },
                 OPTION_8: { type: oracledb.STRING, maxSize: 1000 },
                 ANSWER_TEXT: { type: oracledb.STRING, maxSize: 1000 },
-                EXPLANATION_TEXT: { type: oracledb.STRING} 
+                EEXPLANATION_TEXT: { type: oracledb.DB_TYPE_CLOB }
             }
         };
 
