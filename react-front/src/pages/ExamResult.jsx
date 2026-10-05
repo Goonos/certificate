@@ -36,8 +36,8 @@ export default function ExamResult() {
 
         questions.forEach(q => {
             // DB에 등록된 정답과 내 정답 비교
-            const isCorrect = String(answers[q.qNo]) === String(q.answer);
-            if (isCorrect) totalCorrect++;
+            const cleanAns = (ans) => ans ? String(ans).replace(/[^A-Z0-9]/ig, '').toUpperCase().split('').sort().join('') : '';
+            const isCorrect = cleanAns(answers[q.qNo]) === cleanAns(q.answer);
 
             // 과목별 통계 분류 (원본 유지)
             const subNo = q.subjectNo || '1';

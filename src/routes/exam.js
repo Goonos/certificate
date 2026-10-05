@@ -338,8 +338,12 @@ router.post('/save-progress', authenticateUser, async (req, res) => {
         for (const q of questions) {
             const questionId = q.questionId || q.QUESTION_ID || q.qNo; 
             const selectedAns = answers[q.qNo] ? String(answers[q.qNo]) : null;
-            const isCorrect = selectedAns ? (String(q.answer) === selectedAns ? 'Y' : 'N') : null;
-
+            
+            // 🔥 콤마, 공백 제거 및 대문자 변환 후 알파벳 오름차순 정렬
+            const cleanAns = (ans) => ans ? String(ans).replace(/[^A-Z0-9]/ig, '').toUpperCase().split('').sort().join('') : '';
+            
+            // 🔥 무적화된 채점 로직 적용
+            const isCorrect = selectedAns ? (cleanAns(q.answer) === cleanAns(selectedAns) ? 'Y' : 'N') : null;
             const mergeLogSql = `
                 BEGIN
                     MERGE INTO USER_SOLVE_LOG L
@@ -456,8 +460,12 @@ router.post('/submit', authenticateUser, async (req, res) => {
         for (const q of questions) {
             const questionId = q.questionId || q.QUESTION_ID || q.qNo; 
             const selectedAns = answers[q.qNo] ? String(answers[q.qNo]) : null;
-            const isCorrect = String(selectedAns) === String(q.answer) ? 'Y' : 'N';
-
+            
+            // 🔥 콤마, 공백 제거 및 대문자 변환 후 알파벳 오름차순 정렬
+            const cleanAns = (ans) => ans ? String(ans).replace(/[^A-Z0-9]/ig, '').toUpperCase().split('').sort().join('') : '';
+            
+            // 🔥 무적화된 채점 로직 적용
+            const isCorrect = (cleanAns(selectedAns) === cleanAns(q.answer)) ? 'Y' : 'N';
             const mergeLogSql = `
                 BEGIN
                     MERGE INTO USER_SOLVE_LOG L
